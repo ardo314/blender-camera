@@ -1,0 +1,25 @@
+{
+  "name": "blender-camera-dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "PYTHON_VERSION": "3.12",
+      "UV_VERSION": "0.7.10"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/workspaces/blender-camera/.venv/bin/python"
+      },
+      "extensions": [
+        "eamodio.gitlens",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy",
+        "ms-python.vscode-python-envs",
+        "charliermarsh.ruff"
+      ]
+    }
+  }
+}
