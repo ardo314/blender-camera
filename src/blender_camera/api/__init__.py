@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 
 from blender_camera.app_state import AppState, Camera
 from blender_camera.blender import render_image, render_pointcloud
@@ -133,12 +133,12 @@ class Api:
         camera = self._get_camera_with_exception(camera_id)
         camera.pose = pose
 
-    async def get_camera_pointcloud(self, camera_id: str) -> bytes:
+    async def get_camera_pointcloud(self, camera_id: str) -> Response:
         camera = self._get_camera_with_exception(camera_id)
         ply_bytes = render_pointcloud(camera)
-        return ply_bytes
+        return Response(content=ply_bytes, media_type="application/octet-stream")
 
-    async def get_camera_image(self, camera_id: str) -> bytes:
+    async def get_camera_image(self, camera_id: str) -> Response:
         camera = self._get_camera_with_exception(camera_id)
         png_bytes = render_image(camera)
-        return png_bytes
+        return Response(content=png_bytes, media_type="image/png")
