@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 
 from blender_camera.app_state import AppState, Camera
 from blender_camera.blender import render_image, render_pointcloud
-from blender_camera.models.pose import Pose
+from blender_camera.models.pose import Pose, validate_pose
 
 
 class Api:
@@ -64,6 +64,9 @@ class Api:
         return camera.pose
 
     async def set_camera_pose(self, camera_id: str, pose: Pose):
+        if validate_pose(pose) is False:
+            raise HTTPException(status_code=400, detail="Invalid pose format")
+
         camera = self._get_camera_with_exception(camera_id)
         camera.pose = pose
 
