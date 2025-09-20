@@ -16,26 +16,89 @@ class Api:
             docs_url="/docs",
             swagger_ui_parameters={"tryItOutEnabled": True},
         )
-        self.app.add_api_route("/", self.root, methods=["GET"])
-        self.app.add_api_route("/cameras", self.get_cameras, methods=["GET"])
-        self.app.add_api_route("/cameras", self.create_camera, methods=["POST"])
-        self.app.add_api_route("/cameras/{camera_id}", self.get_camera, methods=["GET"])
         self.app.add_api_route(
-            "/cameras/{camera_id}", self.delete_camera, methods=["DELETE"]
+            "/",
+            self.root,
+            methods=["GET"],
+            response_model=dict,
+            responses={200: {"description": "API root message"}},
         )
         self.app.add_api_route(
-            "/cameras/{camera_id}/pose", self.get_camera_pose, methods=["GET"]
+            "/cameras",
+            self.get_cameras,
+            methods=["GET"],
+            response_model=list[Camera],
+            responses={200: {"description": "List of cameras"}},
         )
         self.app.add_api_route(
-            "/cameras/{camera_id}/pose", self.set_camera_pose, methods=["PUT"]
+            "/cameras",
+            self.create_camera,
+            methods=["POST"],
+            response_model=Camera,
+            responses={201: {"description": "Camera created"}},
+        )
+        self.app.add_api_route(
+            "/cameras/{camera_id}",
+            self.get_camera,
+            methods=["GET"],
+            response_model=Camera,
+            responses={
+                200: {"description": "Camera details"},
+                404: {"description": "Camera not found"},
+            },
+        )
+        self.app.add_api_route(
+            "/cameras/{camera_id}",
+            self.delete_camera,
+            methods=["DELETE"],
+            responses={
+                204: {"description": "Camera deleted"},
+                404: {"description": "Camera not found"},
+            },
+        )
+        self.app.add_api_route(
+            "/cameras/{camera_id}/pose",
+            self.get_camera_pose,
+            methods=["GET"],
+            response_model=Pose,
+            responses={
+                200: {"description": "Camera pose"},
+                404: {"description": "Camera not found"},
+            },
+        )
+        self.app.add_api_route(
+            "/cameras/{camera_id}/pose",
+            self.set_camera_pose,
+            methods=["PUT"],
+            response_model=None,
+            responses={
+                204: {"description": "Pose updated"},
+                400: {"description": "Invalid pose format"},
+                404: {"description": "Camera not found"},
+            },
         )
         self.app.add_api_route(
             "/cameras/{camera_id}/pointcloud",
             self.get_camera_pointcloud,
             methods=["GET"],
+            response_class=None,
+            responses={
+                200: {
+                    "description": "Pointcloud data",
+                    "content": {"application/octet-stream": {}},
+                },
+                404: {"description": "Camera not found"},
+            },
         )
         self.app.add_api_route(
-            "/cameras/{camera_id}/image", self.get_camera_image, methods=["GET"]
+            "/cameras/{camera_id}/image",
+            self.get_camera_image,
+            methods=["GET"],
+            response_class=None,
+            responses={
+                200: {"description": "Rendered image", "content": {"image/png": {}}},
+                404: {"description": "Camera not found"},
+            },
         )
 
     def _get_camera_with_exception(self, camera_id: str) -> Camera:
