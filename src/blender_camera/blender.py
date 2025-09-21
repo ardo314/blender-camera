@@ -30,7 +30,7 @@ def _save_camera_to_tmp_file(camera: Camera) -> str:
 
 async def render_pointcloud(blend_url: str, camera: Camera) -> bytes:
     """Renders a point cloud in ply format and returns the binary data."""
-    blend_file_path = await _load_blend_file(blend_url)
+    blend_file_path = "untitled.blend"  # await _load_blend_file(blend_url)
     json_path = _save_camera_to_tmp_file(camera)
 
     try:
@@ -53,18 +53,18 @@ async def render_pointcloud(blend_url: str, camera: Camera) -> bytes:
 
 async def render_image(blend_url: str, camera: Camera) -> bytes:
     """Renders an image in PNG format and returns the binary data."""
-    blend_file_path = await _load_blend_file(blend_url)
+    blend_file_path = "untitled.blend"  # await _load_blend_file(blend_url)
     json_path = _save_camera_to_tmp_file(camera)
 
     try:
-        output_path = "/tmp/rendered_image.png"
+        output_path = "rendered_image.png"
         subprocess.run(
             [
                 "blender",
                 blend_file_path,
                 "--background",
                 "--python",
-                "this_script.py",
+                "src/scripts/render_png.py",
                 "--",
                 "--json_path",
                 json_path,
@@ -73,8 +73,8 @@ async def render_image(blend_url: str, camera: Camera) -> bytes:
             ]
         )
     finally:
-        os.remove(blend_file_path)
+        # os.remove(blend_file_path)
         os.remove(json_path)
 
-        if os.path.exists(output_path):
-            os.remove(output_path)
+        # if os.path.exists(output_path):
+        #     os.remove(output_path)

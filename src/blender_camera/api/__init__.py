@@ -81,7 +81,7 @@ class Api:
             "/cameras/{camera_id}/pointcloud",
             self.get_camera_pointcloud,
             methods=["GET"],
-            response_class=None,
+            response_class=Response,
             responses={
                 200: {
                     "description": "Pointcloud data",
@@ -94,7 +94,7 @@ class Api:
             "/cameras/{camera_id}/image",
             self.get_camera_image,
             methods=["GET"],
-            response_class=None,
+            response_class=Response,
             responses={
                 200: {"description": "Rendered image", "content": {"image/png": {}}},
                 404: {"description": "Camera not found"},
@@ -133,12 +133,12 @@ class Api:
         camera = self._get_camera_with_exception(camera_id)
         camera.pose = pose
 
-    async def get_camera_pointcloud(self, camera_id: str) -> Response:
+    async def get_camera_pointcloud(self, blend_url: str, camera_id: str) -> Response:
         camera = self._get_camera_with_exception(camera_id)
-        ply_bytes = render_pointcloud(camera)
+        ply_bytes = await render_pointcloud(blend_url, camera)
         return Response(content=ply_bytes, media_type="application/octet-stream")
 
-    async def get_camera_image(self, camera_id: str) -> Response:
+    async def get_camera_image(self, blend_url: str, camera_id: str) -> Response:
         camera = self._get_camera_with_exception(camera_id)
-        png_bytes = render_image(camera)
+        png_bytes = await render_image(blend_url, camera)
         return Response(content=png_bytes, media_type="image/png")

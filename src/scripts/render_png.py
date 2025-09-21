@@ -2,7 +2,7 @@ from typing import TypedDict
 import bpy
 import json
 import argparse
-from mathutils import Quaternion
+from mathutils import Quaternion, Vector
 
 
 class BlenderCameraData(TypedDict):
@@ -20,16 +20,19 @@ def create_camera(camera_data: BlenderCameraData):
     cam = bpy.data.cameras.new(name=camera_data["id"])
     cam_obj = bpy.data.objects.new(name=cam.name, object_data=cam)
     bpy.context.collection.objects.link(cam_obj)
-    cam_obj.location = camera_data["position"]
+    pose = camera_data["pose"]
+    x, y, z = pose[:3]
+    rx, ry, rz = pose[3:]
+    cam_obj.location = (x, y, z)
+
+    # Convert rotation vector (axis-angle) to quaternion
+    rot_vec = Vector((rx, ry, rz))
+    angle = rot_vec.length
+    axis = rot_vec.normalized() if angle != 0 else Vector((0, 0, 1))
+
     cam_obj.rotation_mode = "QUATERNION"
-    cam_obj.rotation_quaternion = Quaternion(
-        (
-            camera_data["rotation"][0],
-            camera_data["rotation"][1],
-            camera_data["rotation"][2],
-            camera_data["rotation"][3],
-        )
-    )
+    cam_obj.rotation_quaternion = Quaternion(axis, angle)
+
     bpy.context.scene.camera = cam_obj
     return cam_obj
 
