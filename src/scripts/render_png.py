@@ -7,8 +7,7 @@ from mathutils import Quaternion
 
 class BlenderCameraData(TypedDict):
     id: str
-    position: list[float]  # [x, y, z]
-    rotation: list[float]  # [w, x, y, z]
+    pose: list[float]  # [x, y, z, rx, ry, rz]
 
 
 def load_camera_data(json_path) -> BlenderCameraData:

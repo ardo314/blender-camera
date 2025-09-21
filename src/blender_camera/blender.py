@@ -1,18 +1,10 @@
 import json
 import os
 import subprocess
-from typing import TypedDict
 
 from blender_camera.models.camera import Camera
 import aiohttp
 import tempfile
-from scipy.spatial.transform import Rotation
-
-
-class BlenderCameraData(TypedDict):
-    id: str
-    position: list[float]  # [x, y, z]
-    rotation: list[float]  # [w, x, y, z]
 
 
 async def _load_blend_file(url: str) -> str:
@@ -30,16 +22,9 @@ async def _load_blend_file(url: str) -> str:
 
 def _save_camera_to_tmp_file(camera: Camera) -> str:
     """Saves camera data to a temporary JSON file and returns the file path."""
-
-    rotation = Rotation.from_euler
-    data: BlenderCameraData = {
-        "id": camera.id,
-        "position": camera.pose[:3],
-        "rotation": camera.pose[3:],
-    }
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
     with open(tmp_file.name, "w") as f:
-        json.dump(data, f)
+        f.write(camera.model_dump_json())
     return tmp_file.name
 
 

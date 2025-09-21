@@ -125,11 +125,11 @@ dependencies = [
     { name = "fastapi", extra = ["standard"] },
     { name = "loguru" },
     { name = "open3d" },
-    { name = "scipy" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "fake-bpy-module" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -142,11 +142,11 @@ requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.116.2" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "open3d", specifier = ">=0.19.0" },
-    { name = "scipy", specifier = ">=1.16.2" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "fake-bpy-module", specifier = ">=20250921" },
     { name = "mypy", specifier = ">=1.18.1" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-asyncio", specifier = ">=1.2.0" },
@@ -358,6 +358,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f5/22/900cb125c76b7aaa450ce02fd727f452243f2e91a61af068b40adba60ea9/email_validator-2.3.0.tar.gz", hash = "sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426", size = 51238, upload-time = "2025-08-26T13:09:06.831Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/de/15/545e2b6cf2e3be84bc1ed85613edd75b8aea69807a71c26f4ca6a9258e82/email_validator-2.3.0-py3-none-any.whl", hash = "sha256:80f13f623413e6b197ae73bb10bf4eb0908faf509ad8362c5edeb0be7fd450b4", size = 35604, upload-time = "2025-08-26T13:09:05.858Z" },
+]
+
+[[package]]
+name = "fake-bpy-module"
+version = "20250921"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/4a/e5237fa5cc53c0d5a59b268e356c4d1c0457f622d43b64903158bf2e2595/fake_bpy_module-20250921.tar.gz", hash = "sha256:dd0211447bfd526ad5210c92610612897ca43feadfa704dade26d809670824b4", size = 966898, upload-time = "2025-09-21T06:18:29.851Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/c8/4b2d41ca5bf7674bd667f9430229b6b1f6c00500b7010553bf2a6f31ad22/fake_bpy_module-20250921-py3-none-any.whl", hash = "sha256:792cab36d2d2ec710e507ceb5b02c6337c6a7af88ef56cbdc10298e04acf9034", size = 1095406, upload-time = "2025-09-21T06:18:28.006Z" },
 ]
 
 [[package]]
