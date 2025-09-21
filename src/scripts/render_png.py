@@ -3,6 +3,7 @@ import bpy
 import json
 import argparse
 from mathutils import Quaternion, Vector
+import sys
 
 
 class BlenderCameraData(TypedDict):
@@ -47,7 +48,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--json_path", required=True)
     parser.add_argument("--output_path", required=True)
-    args, unknown = parser.parse_known_args()
+    args, unknown_args = parser.parse_known_args([x for x in sys.argv if x != "--"])
+    print("Arguments:", args)
+    print("Unknown Arguments:", unknown_args)
 
     camera_data = load_camera_data(args.json_path)
     create_camera(camera_data)
