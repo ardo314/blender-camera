@@ -50,10 +50,8 @@ def create_camera(camera_data: BlenderCameraData) -> bpy.types.Object:
     return cam_obj
 
 
-def render_image(output_path: str):
-    bpy.context.scene.render.image_settings.file_format = "PNG"
-    bpy.context.scene.render.filepath = output_path
-    bpy.ops.render.render(write_still=True)
+def render_ply(output_path: str):
+    pass
 
 
 if __name__ == "__main__":
@@ -66,4 +64,4 @@ if __name__ == "__main__":
 
     camera_data = load_camera_data(args.json_path)
     create_camera(camera_data)
-    render_image(args.output_path)
+    render_ply(args.output_path)
