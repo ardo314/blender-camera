@@ -74,13 +74,13 @@ class EntityIdRouter:
         entity_model = self._get_entity_model_with_http_exception(scene_id)
         entity_model.delete_entity(entity_id)
 
-    async def _get_entity_pose(self, scene_id: Id, entity_id: str) -> Pose:
+    async def _get_entity_pose(self, scene_id: Id, entity_id: Id) -> Pose:
         entity = self._get_entity_with_http_exception(scene_id, entity_id)
         if not isinstance(entity, HasPose):
             raise HTTPException(status_code=400, detail="Entity has no pose")
         return entity.pose
 
-    async def _set_entity_pose(self, scene_id: Id, entity_id: str, pose: Pose):
+    async def _set_entity_pose(self, scene_id: Id, entity_id: Id, pose: Pose):
         entity = self._get_entity_with_http_exception(scene_id, entity_id)
         if not isinstance(entity, HasPose):
             raise HTTPException(status_code=400, detail="Entity has no pose")
