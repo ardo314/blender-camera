@@ -1,24 +1,24 @@
-import uvicorn
-
 from blender_camera.api import Api
-from blender_camera.app_state import AppState
-from blender_camera.utils import get_log_level, get_version
+from blender_camera.api.routes import RootRouter
+from blender_camera.api.routes.scenes import ScenesRouter
+from blender_camera.api.routes.scenes.scene_id import SceneIdRouter
+from blender_camera.api.routes.scenes.scene_id.cameras import CamerasRouter
+from blender_camera.api.routes.scenes.scene_id.entities import EntitiesRouter
+from blender_camera.models.app_state import AppState
+from blender_camera.utils import get_base_path, get_version
 
 
 class App:
     def __init__(self):
         self._app_state = AppState()
 
-    async def start(self):
-        pass
+        root_router = RootRouter(
+            ScenesRouter(SceneIdRouter(EntitiesRouter()), CamerasRouter())
+        )
+        self._api = Api(get_version(), get_base_path(), root_router)
+
+    async def start(self, host: str, port: int):
+        await self._api.start(host, port)
 
     async def stop(self):
         pass
-
-    async def start_api(self, host: str, port: int):
-        api = Api(get_version(), self._app_state)
-        config = uvicorn.Config(
-            api.app, host=host, port=port, log_level=get_log_level()
-        )
-        server = uvicorn.Server(config)
-        await server.serve()

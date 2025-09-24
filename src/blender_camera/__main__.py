@@ -1,4 +1,5 @@
 import asyncio
+
 from blender_camera.app import App
 from blender_camera.utils import log_banner
 
@@ -8,8 +9,7 @@ async def _main():
 
     app = App()
     try:
-        await app.start()
-        await app.start_api("0.0.0.0", 8080)
+        await app.start("0.0.0.0", 8080)
     finally:
         await app.stop()
 

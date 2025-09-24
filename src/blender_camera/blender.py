@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 
-from blender_camera.models.camera import Camera
+from blender_camera.entities.camera import Camera
 import aiohttp
 import tempfile
 

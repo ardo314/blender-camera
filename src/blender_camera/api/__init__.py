@@ -1,144 +1,36 @@
-from fastapi import FastAPI, HTTPException, Response
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from blender_camera.app_state import AppState, Camera
-from blender_camera.blender import render_image, render_pointcloud
-from blender_camera.models.pose import Pose, validate_pose
+from blender_camera.api.routes import RootRouter
+from blender_camera.utils import get_log_level
 
 
 class Api:
-    def __init__(self, version: str, app_state: AppState):
-        self._app_state = app_state
+    def __init__(self, version: str, base_path: str, root: RootRouter):
+        self._version = version
+        self._base_path = base_path
 
-        self.app = FastAPI(
+        self._api = FastAPI(
             title="Blender Camera API",
             description="API for controlling Blender camera operations",
             version=version,
+            root_path=base_path,
             docs_url="/docs",
             swagger_ui_parameters={"tryItOutEnabled": True},
         )
-        self.app.add_api_route(
-            "/",
-            self.root,
-            methods=["GET"],
-            response_model=dict,
-            responses={200: {"description": "API root message"}},
+        self._api.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
         )
-        self.app.add_api_route(
-            "/cameras",
-            self.get_cameras,
-            methods=["GET"],
-            response_model=list[Camera],
-            responses={200: {"description": "List of cameras"}},
+        self._api.include_router(root.router)
+
+    async def start(self, host: str, port: int):
+        config = uvicorn.Config(
+            self._api, host=host, port=port, log_level=get_log_level()
         )
-        self.app.add_api_route(
-            "/cameras",
-            self.create_camera,
-            methods=["POST"],
-            response_model=Camera,
-            responses={201: {"description": "Camera created"}},
-        )
-        self.app.add_api_route(
-            "/cameras/{camera_id}",
-            self.get_camera,
-            methods=["GET"],
-            response_model=Camera,
-            responses={
-                200: {"description": "Camera details"},
-                404: {"description": "Camera not found"},
-            },
-        )
-        self.app.add_api_route(
-            "/cameras/{camera_id}",
-            self.delete_camera,
-            methods=["DELETE"],
-            responses={
-                204: {"description": "Camera deleted"},
-                404: {"description": "Camera not found"},
-            },
-        )
-        self.app.add_api_route(
-            "/cameras/{camera_id}/pose",
-            self.get_camera_pose,
-            methods=["GET"],
-            response_model=Pose,
-            responses={
-                200: {"description": "Camera pose"},
-                404: {"description": "Camera not found"},
-            },
-        )
-        self.app.add_api_route(
-            "/cameras/{camera_id}/pose",
-            self.set_camera_pose,
-            methods=["PUT"],
-            response_model=None,
-            responses={
-                204: {"description": "Pose updated"},
-                400: {"description": "Invalid pose format"},
-                404: {"description": "Camera not found"},
-            },
-        )
-        self.app.add_api_route(
-            "/cameras/{camera_id}/pointcloud",
-            self.get_camera_pointcloud,
-            methods=["GET"],
-            response_class=Response,
-            responses={
-                200: {
-                    "description": "Pointcloud data",
-                    "content": {"application/octet-stream": {}},
-                },
-                404: {"description": "Camera not found"},
-            },
-        )
-        self.app.add_api_route(
-            "/cameras/{camera_id}/image",
-            self.get_camera_image,
-            methods=["GET"],
-            response_class=Response,
-            responses={
-                200: {"description": "Rendered image", "content": {"image/png": {}}},
-                404: {"description": "Camera not found"},
-            },
-        )
-
-    def _get_camera_with_exception(self, camera_id: str) -> Camera:
-        camera = self._app_state.get_camera(camera_id)
-        if camera is None:
-            raise HTTPException(status_code=404, detail="Camera not found")
-        return camera
-
-    async def root(self):
-        return {"message": "Welcome to Blender Camera API"}
-
-    async def get_cameras(self) -> list[Camera]:
-        return self._app_state.get_cameras()
-
-    async def create_camera(self) -> Camera:
-        return self._app_state.create_camera()
-
-    async def get_camera(self, camera_id: str) -> Camera:
-        return self._get_camera_with_exception(camera_id)
-
-    async def delete_camera(self, camera_id: str):
-        self._app_state.delete_camera(camera_id)
-
-    async def get_camera_pose(self, camera_id: str) -> Pose:
-        camera = self._get_camera_with_exception(camera_id)
-        return camera.pose
-
-    async def set_camera_pose(self, camera_id: str, pose: Pose):
-        if validate_pose(pose) is False:
-            raise HTTPException(status_code=400, detail="Invalid pose format")
-
-        camera = self._get_camera_with_exception(camera_id)
-        camera.pose = pose
-
-    async def get_camera_pointcloud(self, blend_url: str, camera_id: str) -> Response:
-        camera = self._get_camera_with_exception(camera_id)
-        ply_bytes = await render_pointcloud(blend_url, camera)
-        return Response(content=ply_bytes, media_type="application/octet-stream")
-
-    async def get_camera_image(self, blend_url: str, camera_id: str) -> Response:
-        camera = self._get_camera_with_exception(camera_id)
-        png_bytes = await render_image(blend_url, camera)
-        return Response(content=png_bytes, media_type="image/png")
+        server = uvicorn.Server(config)
+        await server.serve()
