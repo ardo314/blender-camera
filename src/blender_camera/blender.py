@@ -1,11 +1,11 @@
 import asyncio
-import json
 import os
 import subprocess
-
-from blender_camera.entities.camera import Camera
-import aiohttp
 import tempfile
+
+import aiohttp
+
+from blender_camera.models.entities.camera import Camera
 
 
 async def _load_blend_file(url: str) -> str:

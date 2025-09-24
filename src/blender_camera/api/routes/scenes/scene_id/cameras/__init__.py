@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException
 
 from blender_camera.api.routes.scenes.scene_id.cameras.camera_id import CameraIdRouter
 from blender_camera.models.entities.camera import Camera
@@ -10,17 +10,17 @@ class CamerasRouter:
     def __init__(self, camera_id: CameraIdRouter, scene_model: SceneModel):
         self._scene_model = scene_model
 
-        self.router = APIRouter()
+        self.router = APIRouter(prefix="/cameras")
         self.router.include_router(camera_id.router)
         self.router.add_api_route(
-            "/cameras",
+            "",
             self._get_cameras,
             methods=["GET"],
             response_model=list[Camera],
             responses={200: {"description": "List of cameras"}},
         )
         self.router.add_api_route(
-            "/cameras",
+            "",
             self._create_camera,
             methods=["POST"],
             response_model=Camera,

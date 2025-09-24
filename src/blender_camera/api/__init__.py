@@ -2,12 +2,12 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from blender_camera.api.routes import RootRouter
+from blender_camera.api.routes.scenes import ScenesRouter
 from blender_camera.utils import get_log_level
 
 
 class Api:
-    def __init__(self, version: str, base_path: str, root: RootRouter):
+    def __init__(self, version: str, base_path: str, scenes: ScenesRouter):
         self._version = version
         self._base_path = base_path
 
@@ -26,7 +26,14 @@ class Api:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        self._api.include_router(root.router)
+        self._api.include_router(scenes.router)
+        self._api.add_api_route(
+            "",
+            self._root,
+            methods=["GET"],
+            response_model=dict,
+            responses={200: {"description": "API root message"}},
+        )
 
     async def start(self, host: str, port: int):
         config = uvicorn.Config(
@@ -34,3 +41,6 @@ class Api:
         )
         server = uvicorn.Server(config)
         await server.serve()
+
+    async def _root(self):
+        return {"message": "Welcome to Blender Camera API"}

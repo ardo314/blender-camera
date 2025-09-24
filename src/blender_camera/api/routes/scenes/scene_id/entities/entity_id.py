@@ -1,13 +1,18 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException
 
+from blender_camera.models.components.has_pose import HasPose
 from blender_camera.models.entities.entity import Entity
+from blender_camera.models.entity_model import EntityModel
+from blender_camera.models.id import Id
 from blender_camera.models.pose import Pose, validate_pose
+from blender_camera.models.scene_model import SceneModel
 
 
 class EntityIdRouter:
-    def __init__(self):
-        self.router = APIRouter(prefix="/{entity_id}")
+    def __init__(self, scene_model: SceneModel):
+        self._scene_model = scene_model
 
+        self.router = APIRouter(prefix="/{entity_id}")
         self.router.add_api_route(
             "",
             self._get_entity,
@@ -49,30 +54,38 @@ class EntityIdRouter:
             },
         )
 
-    def _get_entity_with_http_exception(self, entity_id: str) -> Entity:
-        entity = self._app_state.get_entity(entity_id)
+    def _get_entity_model_with_http_exception(self, scene_id: Id) -> EntityModel:
+        scene = self._scene_model.get_scene(scene_id)
+        if scene is None:
+            raise HTTPException(status_code=404, detail="Scene not found")
+        return scene.entity_model
+
+    def _get_entity_with_http_exception(self, scene_id: Id, entity_id: Id) -> Entity:
+        entity_model = self._get_entity_model_with_http_exception(scene_id)
+        entity = entity_model.get_entity(entity_id)
         if entity is None:
             raise HTTPException(status_code=404, detail="Entity not found")
         return entity
 
-    async def _get_entity(self, entity_id: str) -> Entity:
-        return self._get_entity_with_http_exception(entity_id)
+    async def _get_entity(self, scene_id: Id, entity_id: Id) -> Entity:
+        return self._get_entity_with_http_exception(scene_id, entity_id)
 
-    async def _delete_entity(self, entity_id: str) -> Response:
-        self._get_entity_with_http_exception(entity_id)
-        self._app_state.delete_entity(entity_id)
-        return Response(status_code=204)
+    async def _delete_entity(self, scene_id: Id, entity_id: Id) -> None:
+        entity_model = self._get_entity_model_with_http_exception(scene_id)
+        entity_model.delete_entity(entity_id)
 
-    async def _get_entity_pose(self, entity_id: str) -> Pose:
-        entity = self._get_entity_with_http_exception(entity_id)
+    async def _get_entity_pose(self, scene_id: Id, entity_id: str) -> Pose:
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasPose):
+            raise HTTPException(status_code=400, detail="Entity has no pose")
         return entity.pose
 
-    async def _set_entity_pose(self, entity_id: str, pose: Pose):
-        if validate_pose(pose) is False:
-            raise HTTPException(status_code=400, detail="Invalid pose format")
+    async def _set_entity_pose(self, scene_id: Id, entity_id: str, pose: Pose):
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasPose):
+            raise HTTPException(status_code=400, detail="Entity has no pose")
 
-        entity = self._app_state.get_entity(entity_id)
-        if entity is None:
-            raise HTTPException(status_code=404, detail="Entity not found")
+        if not validate_pose(pose):
+            raise HTTPException(status_code=400, detail="Invalid pose format")
 
         entity.pose = pose
