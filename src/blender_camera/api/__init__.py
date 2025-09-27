@@ -18,6 +18,7 @@ class Api:
             root_path=base_path,
             docs_url="/docs",
             swagger_ui_parameters={"tryItOutEnabled": True},
+            redirect_slashes=True,
         )
         self._api.add_middleware(
             CORSMiddleware,
@@ -28,7 +29,7 @@ class Api:
         )
         self._api.include_router(scenes.router)
         self._api.add_api_route(
-            "",
+            "/",
             self._root,
             methods=["GET"],
             response_model=dict,
