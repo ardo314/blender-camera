@@ -58,7 +58,62 @@ def render_image(output_path: str):
 
 
 def render_ply(output_path: str):
-    pass
+    """
+    Create a pointcloud PLY file from depth, normals, and color data.
+    This renders the scene from the current camera and generates depth/normal/color data,
+    then converts it to a pointcloud.
+    """
+    scene = bpy.context.scene
+
+    # Enable depth pass and normal pass in compositor
+    scene.use_nodes = True
+    tree = scene.node_tree
+    tree.nodes.clear()
+
+    # Create render layers node
+    render_layers = tree.nodes.new(type="CompositorNodeRLayers")
+
+    # Create file output nodes for depth, normals, and color
+    depth_output = tree.nodes.new(type="CompositorNodeOutputFile")
+    depth_output.base_path = "/tmp/"
+    depth_output.file_slots[0].path = "depth"
+    depth_output.format.file_format = "OPEN_EXR"
+
+    normal_output = tree.nodes.new(type="CompositorNodeOutputFile")
+    normal_output.base_path = "/tmp/"
+    normal_output.file_slots[0].path = "normal"
+    normal_output.format.file_format = "OPEN_EXR"
+
+    color_output = tree.nodes.new(type="CompositorNodeOutputFile")
+    color_output.base_path = "/tmp/"
+    color_output.file_slots[0].path = "color"
+    color_output.format.file_format = "PNG"
+
+    # Connect the outputs
+    tree.links.new(render_layers.outputs["Depth"], depth_output.inputs[0])
+    tree.links.new(render_layers.outputs["Normal"], normal_output.inputs[0])
+    tree.links.new(render_layers.outputs["Image"], color_output.inputs[0])
+
+    # Enable passes
+    scene.view_layers[0].use_pass_z = True
+    scene.view_layers[0].use_pass_normal = True
+
+    # Render the scene
+    bpy.ops.render.render()
+
+    # TODO: Load the rendered depth, normal, and color images
+    # TODO: Convert to pointcloud using camera intrinsics
+    # TODO: Write PLY file
+
+    # For now, create a simple mesh as placeholder
+    mesh = bpy.data.meshes.new("PointCloud")
+    obj = bpy.data.objects.new("PointCloud", mesh)
+    bpy.context.collection.objects.link(obj)
+
+    # Export as PLY
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.export_mesh.ply(filepath=output_path)
 
 
 if __name__ == "__main__":
