@@ -17,7 +17,6 @@ class EntityIdRouter:
             "",
             self._get_entity,
             methods=["GET"],
-            response_model=Entity,
             responses={
                 200: {"description": "Entity details"},
                 404: {"description": "Entity not found"},
@@ -67,8 +66,9 @@ class EntityIdRouter:
             raise HTTPException(status_code=404, detail="Entity not found")
         return entity
 
-    async def _get_entity(self, scene_id: Id, entity_id: Id) -> Entity:
-        return self._get_entity_with_http_exception(scene_id, entity_id)
+    async def _get_entity(self, scene_id: Id, entity_id: Id):
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        return entity.model_dump()
 
     async def _delete_entity(self, scene_id: Id, entity_id: Id) -> None:
         entity_model = self._get_entity_model_with_http_exception(scene_id)

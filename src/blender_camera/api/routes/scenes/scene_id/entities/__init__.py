@@ -18,7 +18,6 @@ class EntitiesRouter:
             "",
             self._get_entities,
             methods=["GET"],
-            response_model=list[Entity],
             responses={
                 200: {"description": "List of entities"},
                 404: {"description": "Scene not found"},
@@ -31,6 +30,7 @@ class EntitiesRouter:
             raise HTTPException(status_code=404, detail="Scene not found")
         return scene.entity_model
 
-    async def _get_entities(self, scene_id: str) -> list[Entity]:
+    async def _get_entities(self, scene_id: str):
         entity_model = self._get_entity_model_with_http_exception(scene_id)
-        return entity_model.get_entities()
+        entities = entity_model.get_entities()
+        return [entity.model_dump() for entity in entities]
