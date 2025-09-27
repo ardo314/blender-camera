@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
 from blender_camera.api.routes.scenes.scene_id.entities.entity_id import EntityIdRouter
-from blender_camera.models.entities.entity import Entity
 from blender_camera.models.entity_model import EntityModel
 from blender_camera.models.id import Id
 from blender_camera.models.scene_model import SceneModel
