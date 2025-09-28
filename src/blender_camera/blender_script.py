@@ -65,6 +65,10 @@ def render_ply(output_path: str):
     """
     scene = bpy.context.scene
 
+    # Enable passes FIRST - before setting up compositor nodes
+    scene.view_layers[0].use_pass_z = True
+    scene.view_layers[0].use_pass_normal = True
+
     # Enable depth pass and normal pass in compositor
     scene.use_nodes = True
     tree = scene.node_tree
@@ -93,10 +97,6 @@ def render_ply(output_path: str):
     tree.links.new(render_layers.outputs["Depth"], depth_output.inputs[0])
     tree.links.new(render_layers.outputs["Normal"], normal_output.inputs[0])
     tree.links.new(render_layers.outputs["Image"], color_output.inputs[0])
-
-    # Enable passes
-    scene.view_layers[0].use_pass_z = True
-    scene.view_layers[0].use_pass_normal = True
 
     # Render the scene
     bpy.ops.render.render()

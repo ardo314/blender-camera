@@ -61,20 +61,21 @@ async def render_pointcloud(blend_url: str, camera: Camera) -> bytes:
     """Renders a point cloud in ply format and returns the binary data."""
     blend_file_path = "untitled.blend"
     json_path = _save_camera_to_tmp_file(camera)
-    output_path = "/tmp/pointcloud"
+    output_path = tempfile.TemporaryDirectory(delete=False).name
 
     try:
         await _call_blender_process(blend_file_path, json_path, output_path, "ply")
     finally:
         os.remove(blend_file_path)
         os.remove(json_path)
+        os.remove(output_path)
 
 
 async def render_image(blend_url: str, camera: Camera) -> bytes:
     """Renders an image in PNG format and returns the binary data."""
     blend_file_path = "./untitled.blend"  # await _load_blend_file(blend_url)
     json_path = _save_camera_to_tmp_file(camera)
-    output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
 
     try:
         await _call_blender_process(blend_file_path, json_path, output_path, "image")
@@ -83,6 +84,4 @@ async def render_image(blend_url: str, camera: Camera) -> bytes:
     finally:
         os.remove(blend_file_path)
         os.remove(json_path)
-
-        if os.path.exists(output_path):
-            os.remove(output_path)
+        os.remove(output_path)
