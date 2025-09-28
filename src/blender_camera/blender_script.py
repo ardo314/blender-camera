@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import sys
 from typing import TypedDict
 
@@ -51,49 +52,119 @@ def create_camera(camera_data: BlenderCameraData) -> bpy.types.Object:
     return cam_obj
 
 
-def render_frame(output_path: str):
-    """
-    Create a pointcloud PLY file from depth, normals, and color data.
-    This renders the scene from the current camera and generates depth/normal/color data,
-    then converts it to a pointcloud.
-    """
-    scene = bpy.context.scene
+def setup_passes(view_layer: bpy.types.ViewLayer):
+    """Enable the passes we need on the view layer."""
+    view_layer.use_pass_normal = True
+    view_layer.use_pass_z = True
+    # (Color is implicit / via the regular “Image” pass)
 
-    # Enable passes FIRST - before setting up compositor nodes
-    scene.view_layers[0].use_pass_z = True
-    scene.view_layers[0].use_pass_normal = True
 
-    # Enable depth pass and normal pass in compositor
+def clear_compositor_nodes(scene: bpy.types.Scene):
+    """Remove all nodes in the scene’s compositor tree."""
     scene.use_nodes = True
     tree = scene.node_tree
-    tree.nodes.clear()
+    for n in list(tree.nodes):
+        tree.nodes.remove(n)
+    return tree, tree.nodes, tree.links
 
-    # Create render layers node
-    render_layers = tree.nodes.new(type="CompositorNodeRLayers")
 
-    # Create file output nodes for depth, normals, and color
-    depth_output = tree.nodes.new(type="CompositorNodeOutputFile")
-    depth_output.base_path = output_path
-    depth_output.file_slots[0].path = "depth"
-    depth_output.format.file_format = "OPEN_EXR"
+def build_compositor(tree, nodes, links, output_dir, basename="frame"):
+    """
+    Build compositor nodes:
+    - Input: Render Layers
+    - Remap depth
+    - File Output for color, normal, depth
+    Returns the FileOutput nodes (color, normal, depth).
+    """
+    # Render Layers node
+    rl = nodes.new(type="CompositorNodeRLayers")
+    rl.location = (0, 0)
 
-    normal_output = tree.nodes.new(type="CompositorNodeOutputFile")
-    normal_output.base_path = output_path
-    normal_output.file_slots[0].path = "normal"
-    normal_output.format.file_format = "OPEN_EXR"
+    # Map / remap node for depth (optional, to scale Z into displayable range)
+    map_depth = nodes.new(type="CompositorNodeMapRange")
+    map_depth.location = (200, -200)
+    # You may adjust these depending on your scene’s depth range:
+    map_depth.inputs["From Min"].default_value = 0.0
+    map_depth.inputs["From Max"].default_value = 50.0  # e.g. 50 units away
+    map_depth.inputs["To Min"].default_value = 0.0
+    map_depth.inputs["To Max"].default_value = 1.0
+    # map_depth.clamp = True
 
-    color_output = tree.nodes.new(type="CompositorNodeOutputFile")
-    color_output.base_path = output_path
-    color_output.file_slots[0].path = "color"
-    color_output.format.file_format = "PNG"
+    links.new(rl.outputs["Depth"], map_depth.inputs["Value"])
 
-    # Connect the outputs
-    tree.links.new(render_layers.outputs["Depth"], depth_output.inputs[0])
-    tree.links.new(render_layers.outputs["Normal"], normal_output.inputs[0])
-    tree.links.new(render_layers.outputs["Image"], color_output.inputs[0])
+    # File Output: color
+    out_color = nodes.new(type="CompositorNodeOutputFile")
+    out_color.label = "FileOut_Color"
+    out_color.location = (400, 200)
+    slot_c = out_color.file_slots.new(name="Color")
+    # File Output: normals
+    out_normal = nodes.new(type="CompositorNodeOutputFile")
+    out_normal.label = "FileOut_Normal"
+    out_normal.location = (400, 0)
+    slot_n = out_normal.file_slots.new(name="Normal")
+    # File Output: depth
+    out_depth = nodes.new(type="CompositorNodeOutputFile")
+    out_depth.label = "FileOut_Depth"
+    out_depth.location = (400, -200)
+    slot_d = out_depth.file_slots.new(name="Depth")
 
-    # Render the scene
-    bpy.ops.render.render()
+    # Set base path empty so full path is taken from file_slots paths
+    out_color.base_path = ""
+    out_normal.base_path = ""
+    out_depth.base_path = ""
+
+    # Configure formats (you can choose PNG, EXR, etc.)
+    # For depth and normal we often want float formats (EXR)
+    for node in (out_color, out_normal, out_depth):
+        fmt = node.format
+        fmt.file_format = "OPEN_EXR"
+        fmt.color_depth = "32"
+        # For depth you could also force BW or keep RGBA
+        # fmt.color_mode = 'BW'  # optional
+
+    # Link outputs
+    links.new(rl.outputs["Image"], out_color.inputs[0])
+    links.new(rl.outputs["Normal"], out_normal.inputs[0])
+    links.new(map_depth.outputs["Result"], out_depth.inputs[0])
+
+    # Set the path template for naming
+    slot_c.path = os.path.join(output_dir, basename + "_color_")
+    slot_n.path = os.path.join(output_dir, basename + "_normal_")
+    slot_d.path = os.path.join(output_dir, basename + "_depth_")
+
+    return out_color, out_normal, out_depth
+
+
+def render_frames(output_dir, start=1, end=1, basename="frame"):
+    """
+    Render frames in the given range, writing color/normal/depth for each frame.
+    """
+    scene = bpy.context.scene
+    rl = scene.view_layers.items()[0][1]
+    setup_passes(rl)
+
+    tree, nodes, links = clear_compositor_nodes(scene)
+    out_color, out_normal, out_depth = build_compositor(
+        tree, nodes, links, output_dir, basename
+    )
+
+    # Ensure output dir exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Use a float format globally (EXR) to preserve precision
+    scene.render.image_settings.file_format = "OPEN_EXR"
+    scene.render.image_settings.color_depth = "32"
+    scene.render.use_multiview = False  # unless stereo
+    # Use compositing
+    scene.use_nodes = True
+
+    for frame in range(start, end + 1):
+        scene.frame_set(frame)
+        # update the file slot paths (they append frame numbers automatically)
+        out_color.file_slots[0].path = os.path.join(output_dir, f"{basename}_color_")
+        out_normal.file_slots[0].path = os.path.join(output_dir, f"{basename}_normal_")
+        out_depth.file_slots[0].path = os.path.join(output_dir, f"{basename}_depth_")
+        bpy.ops.render.render(write_still=True, use_viewport=False)
 
 
 if __name__ == "__main__":
@@ -107,4 +178,4 @@ if __name__ == "__main__":
     camera_data = load_camera_data(args.json_path)
     create_camera(camera_data)
 
-    render_frame(args.output_path)
+    render_frames(args.output_path, start=1, end=1, basename="myshot")

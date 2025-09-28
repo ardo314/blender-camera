@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Response
 
-from blender_camera.blender import render_image, render_ply
+from blender_camera.blender import render_img, render_ply
 from blender_camera.models.camera_model import CameraModel
 from blender_camera.models.entities.camera import Camera
 from blender_camera.models.id import Id
@@ -69,5 +69,5 @@ class CameraIdRouter:
 
     async def _get_camera_image(self, scene_id: Id, camera_id: Id) -> Response:
         camera = self._get_camera_with_http_exception(scene_id, camera_id)
-        png_bytes = await render_image("blend_url", camera)
+        png_bytes = await render_img("blend_url", camera)
         return Response(content=png_bytes, media_type="image/png")

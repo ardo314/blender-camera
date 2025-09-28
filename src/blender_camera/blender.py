@@ -1,12 +1,10 @@
 import asyncio
 import os
 import shutil
-import subprocess
 import tempfile
 
 import aiohttp
 
-from blender_camera.blender_frame import BlenderFrame
 from blender_camera.models.entities.camera import Camera
 
 
@@ -31,9 +29,7 @@ def _save_camera_to_tmp_file(camera: Camera) -> str:
     return tmp_file.name
 
 
-async def _call_blender_process(
-    blend_file_path: str, json_path: str, output_path: str, render_type: str
-):
+async def _call_blender_process(blend_file_path: str, json_path: str, output_path: str):
     proc = await asyncio.create_subprocess_exec(
         "blender",
         blend_file_path,
@@ -76,7 +72,7 @@ async def render_ply(blend_url: str, camera: Camera) -> bytes:
     finally:
         os.remove(blend_file_path)
         os.remove(json_path)
-        shutil.rmtree(output_path)
+        # shutil.rmtree(output_path)
 
 
 async def render_img(blend_url: str, camera: Camera) -> bytes:
