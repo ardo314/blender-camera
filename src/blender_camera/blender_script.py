@@ -12,7 +12,7 @@ class BlenderCameraData(TypedDict):
     pose: list[float]  # [x, y, z, rx, ry, rz]
 
 
-def load_camera_data(json_path) -> BlenderCameraData:
+def load_camera_data(json_path: str) -> BlenderCameraData:
     with open(json_path, "r") as f:
         data = json.load(f)
     return data
@@ -75,17 +75,17 @@ def render_ply(output_path: str):
 
     # Create file output nodes for depth, normals, and color
     depth_output = tree.nodes.new(type="CompositorNodeOutputFile")
-    depth_output.base_path = "/tmp/"
+    depth_output.base_path = output_path
     depth_output.file_slots[0].path = "depth"
     depth_output.format.file_format = "OPEN_EXR"
 
     normal_output = tree.nodes.new(type="CompositorNodeOutputFile")
-    normal_output.base_path = "/tmp/"
+    normal_output.base_path = output_path
     normal_output.file_slots[0].path = "normal"
     normal_output.format.file_format = "OPEN_EXR"
 
     color_output = tree.nodes.new(type="CompositorNodeOutputFile")
-    color_output.base_path = "/tmp/"
+    color_output.base_path = output_path
     color_output.file_slots[0].path = "color"
     color_output.format.file_format = "PNG"
 
@@ -101,25 +101,12 @@ def render_ply(output_path: str):
     # Render the scene
     bpy.ops.render.render()
 
-    # TODO: Load the rendered depth, normal, and color images
-    # TODO: Convert to pointcloud using camera intrinsics
-    # TODO: Write PLY file
-
-    # For now, create a simple mesh as placeholder
-    mesh = bpy.data.meshes.new("PointCloud")
-    obj = bpy.data.objects.new("PointCloud", mesh)
-    bpy.context.collection.objects.link(obj)
-
-    # Export as PLY
-    bpy.context.view_layer.objects.active = obj
-    obj.select_set(True)
-    bpy.ops.export_mesh.ply(filepath=output_path)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--json_path", required=True)
     parser.add_argument("--output_path", required=True)
+    parser.add_argument("--type", required=True, choices=["image", "ply"])
     args, unknown_args = parser.parse_known_args([x for x in sys.argv if x != "--"])
     print("Arguments:", args)
     print("Unknown Arguments:", unknown_args)
@@ -127,7 +114,7 @@ if __name__ == "__main__":
     camera_data = load_camera_data(args.json_path)
     create_camera(camera_data)
 
-    if args.output_path.lower().endswith(".png"):
+    if args.type == "image":
         render_image(args.output_path)
-    elif args.output_path.lower().endswith(".ply"):
+    elif args.type == "ply":
         render_ply(args.output_path)

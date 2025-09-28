@@ -29,12 +29,6 @@ def _save_camera_to_tmp_file(camera: Camera) -> str:
     return tmp_file.name
 
 
-def _get_image_path() -> str:
-    """Generates a temporary file path for the rendered image."""
-    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-    return tmp_file.name
-
-
 async def render_pointcloud(blend_url: str, camera: Camera) -> bytes:
     """Renders a point cloud in ply format and returns the binary data."""
     blend_file_path = "untitled.blend"  # await _load_blend_file(blend_url)
@@ -62,7 +56,7 @@ async def render_image(blend_url: str, camera: Camera) -> bytes:
     """Renders an image in PNG format and returns the binary data."""
     blend_file_path = "./untitled.blend"  # await _load_blend_file(blend_url)
     json_path = _save_camera_to_tmp_file(camera)
-    output_path = "image.png"
+    output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
 
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -70,12 +64,14 @@ async def render_image(blend_url: str, camera: Camera) -> bytes:
             blend_file_path,
             "--background",
             "--python",
-            "src/scripts/render_png.py",
+            "src/blender_camera/blender_script.py",
             "--",
             "--json_path",
             json_path,
             "--output_path",
             output_path,
+            "--type",
+            "image",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
