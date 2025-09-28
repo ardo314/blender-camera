@@ -2,89 +2,61 @@ import asyncio
 import os
 import shutil
 import tempfile
-
-import aiohttp
+from contextlib import asynccontextmanager
 
 from blender_camera.models.entities.camera import Camera
 
 
-async def _load_blend_file(url: str) -> str:
-    """Downloads a scene file from a URL and returns the local file path."""
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            response.raise_for_status()
-            content = await response.read()
+class Blender:
+    def __init__(self, scene: str):
+        self._scene = scene
 
-    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".blend")
-    with open(tmp_file.name, "wb") as f:
-        f.write(content)
-    return tmp_file.name
+    def _write_tmp_state(self, camera: Camera) -> str:
+        """Saves camera data to a temporary JSON file and returns the file path."""
+        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+        with open(tmp_file.name, "w") as f:
+            f.write(camera.model_dump_json())
+        return tmp_file.name
 
+    @asynccontextmanager
+    async def _render_frame(self, camera: Camera):
+        input_path = self._write_tmp_state(camera)
+        output_path = tempfile.TemporaryDirectory(delete=False).name
 
-def _save_camera_to_tmp_file(camera: Camera) -> str:
-    """Saves camera data to a temporary JSON file and returns the file path."""
-    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
-    with open(tmp_file.name, "w") as f:
-        f.write(camera.model_dump_json())
-    return tmp_file.name
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "blender",
+                self._scene,
+                "--background",
+                "--python",
+                "src/blender_camera/blender_script.py",
+                "--",
+                "--input_path",
+                input_path,
+                "--output_path",
+                output_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+            print("Blender stdout:\n", stdout.decode())
+            print("Blender stderr:\n", stderr.decode())
+            print("Blender exit code:", proc.returncode)
 
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"Blender process failed with exit code {proc.returncode}"
+                )
 
-async def _call_blender_process(blend_file_path: str, json_path: str, output_path: str):
-    proc = await asyncio.create_subprocess_exec(
-        "blender",
-        blend_file_path,
-        "--background",
-        "--python",
-        "src/blender_camera/blender_script.py",
-        "--",
-        "--json_path",
-        json_path,
-        "--output_path",
-        output_path,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await proc.communicate()
-    print("Blender stdout:\n", stdout.decode())
-    print("Blender stderr:\n", stderr.decode())
-    print("Blender exit code:", proc.returncode)
+            yield output_path
+        finally:
+            os.remove(input_path)
+            shutil.rmtree(output_path)
 
-    if proc.returncode != 0:
-        raise RuntimeError(f"Blender process failed with exit code {proc.returncode}")
+    async def render_ply(self, camera: Camera) -> bytes:
+        async with self._render_frame(camera) as output_path:
+            pass
 
-
-async def render_ply(blend_url: str, camera: Camera) -> bytes:
-    blend_file_path = "untitled.blend"
-    json_path = _save_camera_to_tmp_file(camera)
-    output_path = tempfile.TemporaryDirectory(delete=False).name
-
-    try:
-        await _call_blender_process(blend_file_path, json_path, output_path)
-
-        with open(os.path.join(output_path, "color.png"), "rb") as f:
-            color = f.read()
-        with open(os.path.join(output_path, "depth.png"), "rb") as f:
-            depth = f.read()
-        with open(os.path.join(output_path, "normal.png"), "rb") as f:
-            normal = f.read()
-
-        return color
-    finally:
-        os.remove(blend_file_path)
-        os.remove(json_path)
-        # shutil.rmtree(output_path)
-
-
-async def render_img(blend_url: str, camera: Camera) -> bytes:
-    blend_file_path = "untitled.blend"
-    json_path = _save_camera_to_tmp_file(camera)
-    output_path = tempfile.TemporaryDirectory(delete=False).name
-
-    try:
-        await _call_blender_process(blend_file_path, json_path, output_path)
-        with open(os.path.join(output_path, "color.png"), "rb") as f:
-            return f.read()
-    finally:
-        os.remove(blend_file_path)
-        os.remove(json_path)
-        shutil.rmtree(output_path)
+    async def render_img(self, camera: Camera) -> bytes:
+        async with self._render_frame(camera) as output_path:
+            pass

@@ -8,22 +8,22 @@ import bpy
 from mathutils import Quaternion, Vector
 
 
-class BlenderCameraData(TypedDict):
+class SceneState(TypedDict):
     id: str
     pose: list[float]  # [x, y, z, rx, ry, rz]
 
 
-def load_camera_data(json_path: str) -> BlenderCameraData:
-    with open(json_path, "r") as f:
-        data = json.load(f)
-    return data
+def _load_scene_state(input_path: str) -> SceneState:
+    with open(input_path, "r") as f:
+        state = json.load(f)
+    return state
 
 
-def create_camera(camera_data: BlenderCameraData) -> bpy.types.Object:
-    cam = bpy.data.cameras.new(name=camera_data["id"])
+def _create_camera(state: SceneState) -> bpy.types.Object:
+    cam = bpy.data.cameras.new(name=state["id"])
     cam_obj = bpy.data.objects.new(name=cam.name, object_data=cam)
     bpy.context.collection.objects.link(cam_obj)
-    pose = camera_data["pose"]
+    pose = state["pose"]
     x, y, z = pose[:3]
     rx, ry, rz = pose[3:]
     cam_obj.location = (x, y, z)
@@ -52,14 +52,14 @@ def create_camera(camera_data: BlenderCameraData) -> bpy.types.Object:
     return cam_obj
 
 
-def setup_passes(view_layer: bpy.types.ViewLayer):
+def _setup_passes(view_layer: bpy.types.ViewLayer):
     """Enable the passes we need on the view layer."""
     view_layer.use_pass_normal = True
     view_layer.use_pass_z = True
     # (Color is implicit / via the regular “Image” pass)
 
 
-def clear_compositor_nodes(scene: bpy.types.Scene):
+def _clear_compositor_nodes(scene: bpy.types.Scene):
     """Remove all nodes in the scene’s compositor tree."""
     scene.use_nodes = True
     tree = scene.node_tree
@@ -68,7 +68,7 @@ def clear_compositor_nodes(scene: bpy.types.Scene):
     return tree, tree.nodes, tree.links
 
 
-def build_compositor(tree, nodes, links, output_dir, basename="frame"):
+def _build_compositor(tree, nodes, links, output_dir, basename="frame"):
     """
     Build compositor nodes:
     - Input: Render Layers
@@ -96,17 +96,14 @@ def build_compositor(tree, nodes, links, output_dir, basename="frame"):
     out_color = nodes.new(type="CompositorNodeOutputFile")
     out_color.label = "FileOut_Color"
     out_color.location = (400, 200)
-    slot_c = out_color.file_slots.new(name="Color")
     # File Output: normals
     out_normal = nodes.new(type="CompositorNodeOutputFile")
     out_normal.label = "FileOut_Normal"
     out_normal.location = (400, 0)
-    slot_n = out_normal.file_slots.new(name="Normal")
     # File Output: depth
     out_depth = nodes.new(type="CompositorNodeOutputFile")
     out_depth.label = "FileOut_Depth"
     out_depth.location = (400, -200)
-    slot_d = out_depth.file_slots.new(name="Depth")
 
     # Set base path empty so full path is taken from file_slots paths
     out_color.base_path = ""
@@ -125,26 +122,32 @@ def build_compositor(tree, nodes, links, output_dir, basename="frame"):
     # Link outputs
     links.new(rl.outputs["Image"], out_color.inputs[0])
     links.new(rl.outputs["Normal"], out_normal.inputs[0])
-    links.new(map_depth.outputs["Result"], out_depth.inputs[0])
+    links.new(map_depth.outputs["Value"], out_depth.inputs[0])
 
-    # Set the path template for naming
-    slot_c.path = os.path.join(output_dir, basename + "_color_")
-    slot_n.path = os.path.join(output_dir, basename + "_normal_")
-    slot_d.path = os.path.join(output_dir, basename + "_depth_")
+    # Set the path template for naming using default slots (index 0)
+    out_color.file_slots[0].path = os.path.abspath(
+        os.path.join(output_dir, basename + "_color_")
+    )
+    out_normal.file_slots[0].path = os.path.abspath(
+        os.path.join(output_dir, basename + "_normal_")
+    )
+    out_depth.file_slots[0].path = os.path.abspath(
+        os.path.join(output_dir, basename + "_depth_")
+    )
 
     return out_color, out_normal, out_depth
 
 
-def render_frames(output_dir, start=1, end=1, basename="frame"):
+def _render_frames(output_dir, start=1, end=1, basename="frame"):
     """
     Render frames in the given range, writing color/normal/depth for each frame.
     """
     scene = bpy.context.scene
     rl = scene.view_layers.items()[0][1]
-    setup_passes(rl)
+    _setup_passes(rl)
 
-    tree, nodes, links = clear_compositor_nodes(scene)
-    out_color, out_normal, out_depth = build_compositor(
+    tree, nodes, links = _clear_compositor_nodes(scene)
+    out_color, out_normal, out_depth = _build_compositor(
         tree, nodes, links, output_dir, basename
     )
 
@@ -161,21 +164,27 @@ def render_frames(output_dir, start=1, end=1, basename="frame"):
     for frame in range(start, end + 1):
         scene.frame_set(frame)
         # update the file slot paths (they append frame numbers automatically)
-        out_color.file_slots[0].path = os.path.join(output_dir, f"{basename}_color_")
-        out_normal.file_slots[0].path = os.path.join(output_dir, f"{basename}_normal_")
-        out_depth.file_slots[0].path = os.path.join(output_dir, f"{basename}_depth_")
+        out_color.file_slots[0].path = os.path.abspath(
+            os.path.join(output_dir, f"{basename}_color_")
+        )
+        out_normal.file_slots[0].path = os.path.abspath(
+            os.path.join(output_dir, f"{basename}_normal_")
+        )
+        out_depth.file_slots[0].path = os.path.abspath(
+            os.path.join(output_dir, f"{basename}_depth_")
+        )
         bpy.ops.render.render(write_still=True, use_viewport=False)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--json_path", required=True)
+    parser.add_argument("--input_path", required=True)
     parser.add_argument("--output_path", required=True)
     args, unknown_args = parser.parse_known_args([x for x in sys.argv if x != "--"])
     print("Arguments:", args)
     print("Unknown Arguments:", unknown_args)
 
-    camera_data = load_camera_data(args.json_path)
-    create_camera(camera_data)
+    scene_state = _load_scene_state(args.input_path)
+    _create_camera(scene_state)
 
-    render_frames(args.output_path, start=1, end=1, basename="myshot")
+    _render_frames(args.output_path, start=1, end=1, basename="myshot")
