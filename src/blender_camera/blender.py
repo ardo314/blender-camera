@@ -29,24 +29,42 @@ def _save_camera_to_tmp_file(camera: Camera) -> str:
     return tmp_file.name
 
 
+async def _call_blender_process(
+    blend_file_path: str, json_path: str, output_path: str, render_type: str
+):
+    proc = await asyncio.create_subprocess_exec(
+        "blender",
+        blend_file_path,
+        "--background",
+        "--python",
+        "src/blender_camera/blender_script.py",
+        "--",
+        "--json_path",
+        json_path,
+        "--output_path",
+        output_path,
+        "--type",
+        render_type,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    print("Blender stdout:\n", stdout.decode())
+    print("Blender stderr:\n", stderr.decode())
+    print("Blender exit code:", proc.returncode)
+
+    if proc.returncode != 0:
+        raise RuntimeError(f"Blender process failed with exit code {proc.returncode}")
+
+
 async def render_pointcloud(blend_url: str, camera: Camera) -> bytes:
     """Renders a point cloud in ply format and returns the binary data."""
-    blend_file_path = "untitled.blend"  # await _load_blend_file(blend_url)
+    blend_file_path = "untitled.blend"
     json_path = _save_camera_to_tmp_file(camera)
+    output_path = "/tmp/pointcloud"
 
     try:
-        cmd = [
-            "blender",
-            blend_file_path,
-            "--background",
-            "--python",
-            "this_script.py",
-            "--",
-            "--json_path",
-            json_path,
-        ]
-        print("Running Blender command:", " ".join(cmd))
-        subprocess.run(cmd)
+        await _call_blender_process(blend_file_path, json_path, output_path, "ply")
     finally:
         os.remove(blend_file_path)
         os.remove(json_path)
@@ -59,32 +77,7 @@ async def render_image(blend_url: str, camera: Camera) -> bytes:
     output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
 
     try:
-        proc = await asyncio.create_subprocess_exec(
-            "blender",
-            blend_file_path,
-            "--background",
-            "--python",
-            "src/blender_camera/blender_script.py",
-            "--",
-            "--json_path",
-            json_path,
-            "--output_path",
-            output_path,
-            "--type",
-            "image",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-        print("Blender stdout:\n", stdout.decode())
-        print("Blender stderr:\n", stderr.decode())
-        print("Blender exit code:", proc.returncode)
-
-        if proc.returncode != 0:
-            raise RuntimeError(
-                f"Blender process failed with exit code {proc.returncode}"
-            )
-
+        await _call_blender_process(blend_file_path, json_path, output_path, "image")
         with open(output_path, "rb") as f:
             return f.read()
     finally:
