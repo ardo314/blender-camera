@@ -138,7 +138,7 @@ def _build_compositor(tree, nodes, links, output_dir, basename="frame"):
     return out_color, out_normal, out_depth
 
 
-def _render_frames(output_dir, start=1, end=1, basename="frame"):
+def _render_frames(output_dir: str, start: int, end: int, basename: str):
     """
     Render frames in the given range, writing color/normal/depth for each frame.
     """
@@ -187,4 +187,4 @@ if __name__ == "__main__":
     scene_state = _load_scene_state(args.input_path)
     _create_camera(scene_state)
 
-    _render_frames(args.output_path, start=1, end=1, basename="myshot")
+    _render_frames(args.output_path, 1, 1, "frame")
