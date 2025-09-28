@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Response
 
-from blender_camera.blender import render_img, render_ply
+from blender_camera.blender import Blender
 from blender_camera.models.camera_model import CameraModel
 from blender_camera.models.entities.camera import Camera
 from blender_camera.models.id import Id
@@ -64,10 +64,12 @@ class CameraIdRouter:
 
     async def _get_camera_pointcloud(self, scene_id: Id, camera_id: Id) -> Response:
         camera = self._get_camera_with_http_exception(scene_id, camera_id)
-        ply_bytes = await render_ply("blend_url", camera)
+        blender = Blender("untitled.blend")
+        ply_bytes = await blender.render_ply(camera)
         return Response(content=ply_bytes, media_type="application/octet-stream")
 
     async def _get_camera_image(self, scene_id: Id, camera_id: Id) -> Response:
         camera = self._get_camera_with_http_exception(scene_id, camera_id)
-        png_bytes = await render_img("blend_url", camera)
+        blender = Blender("untitled.blend")
+        png_bytes = await blender.render_png(camera)
         return Response(content=png_bytes, media_type="image/png")
