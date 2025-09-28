@@ -3,6 +3,12 @@ import os
 import shutil
 import tempfile
 from contextlib import asynccontextmanager
+from io import BytesIO
+
+import Imath
+import numpy as np
+import OpenEXR
+from PIL import Image
 
 from blender_camera.models.entities.camera import Camera
 
@@ -58,7 +64,41 @@ class Blender:
             with open(os.path.join(output_path, "frame_color_0001.exr"), "rb") as f:
                 return f.read()
 
-    async def render_img(self, camera: Camera) -> bytes:
+    def _convert_exr_to_png(self, exr_path: str) -> bytes:
+        """Convert EXR file to PNG format and return as bytes."""
+        # Open the EXR file
+        exr_file = OpenEXR.InputFile(exr_path)
+        header = exr_file.header()
+
+        # Get the data window (the actual image bounds)
+        dw = header["dataWindow"]
+        width = dw.max.x - dw.min.x + 1
+        height = dw.max.y - dw.min.y + 1
+
+        # Read the RGB channels
+        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+        (R, G, B) = exr_file.channels("RGB", FLOAT)
+
+        # Convert to numpy arrays
+        r = np.frombuffer(R, dtype=np.float32).reshape((height, width))
+        g = np.frombuffer(G, dtype=np.float32).reshape((height, width))
+        b = np.frombuffer(B, dtype=np.float32).reshape((height, width))
+
+        # Stack the channels and convert to 8-bit
+        rgb = np.stack([r, g, b], axis=-1)
+
+        # Tone mapping: clamp and scale to 0-255
+        rgb = np.clip(rgb, 0.0, 1.0)
+        rgb_8bit = (rgb * 255).astype(np.uint8)
+
+        # Convert to PIL Image and save to bytes
+        image = Image.fromarray(rgb_8bit)
+        img_bytes = BytesIO()
+        image.save(img_bytes, format="PNG")
+
+        return img_bytes.getvalue()
+
+    async def render_png(self, camera: Camera) -> bytes:
         async with self._render_frame(camera) as output_path:
-            with open(os.path.join(output_path, "frame_color_0001.exr"), "rb") as f:
-                return f.read()
+            exr_path = os.path.join(output_path, "frame_color_0001.exr")
+            return self._convert_exr_to_png(exr_path)
