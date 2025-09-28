@@ -1,10 +1,12 @@
 import asyncio
 import os
+import shutil
 import subprocess
 import tempfile
 
 import aiohttp
 
+from blender_camera.blender_frame import BlenderFrame
 from blender_camera.models.entities.camera import Camera
 
 
@@ -43,8 +45,6 @@ async def _call_blender_process(
         json_path,
         "--output_path",
         output_path,
-        "--type",
-        render_type,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -57,31 +57,38 @@ async def _call_blender_process(
         raise RuntimeError(f"Blender process failed with exit code {proc.returncode}")
 
 
-async def render_pointcloud(blend_url: str, camera: Camera) -> bytes:
-    """Renders a point cloud in ply format and returns the binary data."""
+async def render_ply(blend_url: str, camera: Camera) -> bytes:
     blend_file_path = "untitled.blend"
     json_path = _save_camera_to_tmp_file(camera)
     output_path = tempfile.TemporaryDirectory(delete=False).name
 
     try:
-        await _call_blender_process(blend_file_path, json_path, output_path, "ply")
+        await _call_blender_process(blend_file_path, json_path, output_path)
+
+        with open(os.path.join(output_path, "color.png"), "rb") as f:
+            color = f.read()
+        with open(os.path.join(output_path, "depth.png"), "rb") as f:
+            depth = f.read()
+        with open(os.path.join(output_path, "normal.png"), "rb") as f:
+            normal = f.read()
+
+        return color
     finally:
         os.remove(blend_file_path)
         os.remove(json_path)
-        os.remove(output_path)
+        shutil.rmtree(output_path)
 
 
-async def render_image(blend_url: str, camera: Camera) -> bytes:
-    """Renders an image in PNG format and returns the binary data."""
-    blend_file_path = "./untitled.blend"  # await _load_blend_file(blend_url)
+async def render_img(blend_url: str, camera: Camera) -> bytes:
+    blend_file_path = "untitled.blend"
     json_path = _save_camera_to_tmp_file(camera)
-    output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+    output_path = tempfile.TemporaryDirectory(delete=False).name
 
     try:
-        await _call_blender_process(blend_file_path, json_path, output_path, "image")
-        with open(output_path, "rb") as f:
+        await _call_blender_process(blend_file_path, json_path, output_path)
+        with open(os.path.join(output_path, "color.png"), "rb") as f:
             return f.read()
     finally:
         os.remove(blend_file_path)
         os.remove(json_path)
-        os.remove(output_path)
+        shutil.rmtree(output_path)
