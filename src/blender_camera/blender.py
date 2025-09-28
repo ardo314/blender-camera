@@ -60,5 +60,5 @@ class Blender:
 
     async def render_img(self, camera: Camera) -> bytes:
         async with self._render_frame(camera) as output_path:
-            with open(os.path.join(output_path, "frame_color_0001.png"), "rb") as f:
+            with open(os.path.join(output_path, "frame_color_0001.exr"), "rb") as f:
                 return f.read()

@@ -105,10 +105,10 @@ def _build_compositor(tree, nodes, links, output_dir, basename="frame"):
     out_depth.label = "FileOut_Depth"
     out_depth.location = (400, -200)
 
-    # Set base path empty so full path is taken from file_slots paths
-    out_color.base_path = ""
-    out_normal.base_path = ""
-    out_depth.base_path = ""
+    # Set base path to the output directory
+    out_color.base_path = output_dir
+    out_normal.base_path = output_dir
+    out_depth.base_path = output_dir
 
     # Configure formats (you can choose PNG, EXR, etc.)
     # For depth and normal we often want float formats (EXR)
@@ -124,16 +124,10 @@ def _build_compositor(tree, nodes, links, output_dir, basename="frame"):
     links.new(rl.outputs["Normal"], out_normal.inputs[0])
     links.new(map_depth.outputs["Value"], out_depth.inputs[0])
 
-    # Set the path template for naming using default slots (index 0)
-    out_color.file_slots[0].path = os.path.abspath(
-        os.path.join(output_dir, basename + "_color_")
-    )
-    out_normal.file_slots[0].path = os.path.abspath(
-        os.path.join(output_dir, basename + "_normal_")
-    )
-    out_depth.file_slots[0].path = os.path.abspath(
-        os.path.join(output_dir, basename + "_depth_")
-    )
+    # Set the filename patterns for naming using default slots (index 0)
+    out_color.file_slots[0].path = basename + "_color_"
+    out_normal.file_slots[0].path = basename + "_normal_"
+    out_depth.file_slots[0].path = basename + "_depth_"
 
     return out_color, out_normal, out_depth
 
@@ -154,6 +148,9 @@ def _render_frames(output_dir: str, start: int, end: int, basename: str):
     # Ensure output dir exists
     os.makedirs(output_dir, exist_ok=True)
 
+    # Disable the default render output since we're using compositor File Output nodes
+    scene.render.filepath = ""
+
     # Use a float format globally (EXR) to preserve precision
     scene.render.image_settings.file_format = "OPEN_EXR"
     scene.render.image_settings.color_depth = "32"
@@ -163,16 +160,6 @@ def _render_frames(output_dir: str, start: int, end: int, basename: str):
 
     for frame in range(start, end + 1):
         scene.frame_set(frame)
-        # update the file slot paths (they append frame numbers automatically)
-        out_color.file_slots[0].path = os.path.abspath(
-            os.path.join(output_dir, f"{basename}_color_")
-        )
-        out_normal.file_slots[0].path = os.path.abspath(
-            os.path.join(output_dir, f"{basename}_normal_")
-        )
-        out_depth.file_slots[0].path = os.path.abspath(
-            os.path.join(output_dir, f"{basename}_depth_")
-        )
         bpy.ops.render.render(write_still=True, use_viewport=False)
 
 
