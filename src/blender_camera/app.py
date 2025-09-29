@@ -2,7 +2,6 @@ from blender_camera.api import Api
 from blender_camera.api.routes.scenes import ScenesRouter
 from blender_camera.api.routes.scenes.scene_id import SceneIdRouter
 from blender_camera.api.routes.scenes.scene_id.cameras import CamerasRouter
-from blender_camera.api.routes.scenes.scene_id.cameras.camera_id import CameraIdRouter
 from blender_camera.api.routes.scenes.scene_id.entities import EntitiesRouter
 from blender_camera.api.routes.scenes.scene_id.entities.entity_id import EntityIdRouter
 from blender_camera.models.scene_model import SceneModel
@@ -16,7 +15,7 @@ class App:
         scenes_router = ScenesRouter(
             SceneIdRouter(
                 EntitiesRouter(EntityIdRouter(scene_model), scene_model),
-                CamerasRouter(CameraIdRouter(scene_model), scene_model),
+                CamerasRouter(scene_model),
                 scene_model,
             ),
             scene_model,

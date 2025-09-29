@@ -4,20 +4,24 @@ import shutil
 import tempfile
 from contextlib import asynccontextmanager
 from io import BytesIO
+from typing import Union
 
 import Imath
 import numpy as np
 import OpenEXR
 from PIL import Image
 
-from blender_camera.models.entities.camera import Camera
+from blender_camera.models.components.has_id import HasId
+from blender_camera.models.components.has_pose import HasPose
+
+CameraLike = Union[HasId, HasPose]
 
 
 class Blender:
     def __init__(self, scene: str):
         self._scene = scene
 
-    def _write_tmp_state(self, camera: Camera) -> str:
+    def _write_tmp_state(self, camera: CameraLike) -> str:
         """Saves camera data to a temporary JSON file and returns the file path."""
         tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
         with open(tmp_file.name, "w") as f:
@@ -25,7 +29,7 @@ class Blender:
         return tmp_file.name
 
     @asynccontextmanager
-    async def _render_frame(self, camera: Camera):
+    async def _render_frame(self, camera: CameraLike):
         input_path = self._write_tmp_state(camera)
         output_path = tempfile.TemporaryDirectory(delete=False).name
 
@@ -59,7 +63,7 @@ class Blender:
             os.remove(input_path)
             shutil.rmtree(output_path)
 
-    async def render_ply(self, camera: Camera) -> bytes:
+    async def render_ply(self, camera: CameraLike) -> bytes:
         async with self._render_frame(camera) as output_path:
             with open(os.path.join(output_path, "frame_color_0001.exr"), "rb") as f:
                 return f.read()
@@ -98,7 +102,7 @@ class Blender:
 
         return img_bytes.getvalue()
 
-    async def render_png(self, camera: Camera) -> bytes:
+    async def render_png(self, camera: CameraLike) -> bytes:
         async with self._render_frame(camera) as output_path:
             exr_path = os.path.join(output_path, "frame_color_0001.exr")
             return self._convert_exr_to_png(exr_path)

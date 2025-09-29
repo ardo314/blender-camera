@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
+from blender_camera.blender import Blender
 from blender_camera.models.components.has_pose import HasPose
 from blender_camera.models.entities.entity import Entity
 from blender_camera.models.entity_model import EntityModel
@@ -52,6 +53,29 @@ class EntityIdRouter:
                 404: {"description": "Entity not found"},
             },
         )
+        self.router.add_api_route(
+            "/pointcloud",
+            self._get_entity_pointcloud,
+            methods=["GET"],
+            response_class=Response,
+            responses={
+                200: {
+                    "description": "Pointcloud data",
+                    "content": {"application/octet-stream": {}},
+                },
+                404: {"description": "Camera not found"},
+            },
+        )
+        self.router.add_api_route(
+            "/image",
+            self._get_entity_image,
+            methods=["GET"],
+            response_class=Response,
+            responses={
+                200: {"description": "Rendered image", "content": {"image/png": {}}},
+                404: {"description": "Camera not found"},
+            },
+        )
 
     def _get_entity_model_with_http_exception(self, scene_id: Id) -> EntityModel:
         scene = self._scene_model.get_scene(scene_id)
@@ -89,3 +113,15 @@ class EntityIdRouter:
             raise HTTPException(status_code=400, detail="Invalid pose format")
 
         entity.pose = pose
+
+    async def _get_entity_pointcloud(self, scene_id: Id, entity_id: Id) -> Response:
+        camera = self._get_entity_with_http_exception(scene_id, entity_id)
+        blender = Blender("untitled.blend")
+        ply_bytes = await blender.render_ply(camera)
+        return Response(content=ply_bytes, media_type="application/octet-stream")
+
+    async def _get_entity_image(self, scene_id: Id, entity_id: Id) -> Response:
+        camera = self._get_entity_with_http_exception(scene_id, entity_id)
+        blender = Blender("untitled.blend")
+        png_bytes = await blender.render_png(camera)
+        return Response(content=png_bytes, media_type="image/png")
