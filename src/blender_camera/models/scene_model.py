@@ -1,3 +1,5 @@
+import os
+import tempfile
 from uuid import uuid4
 
 from blender_camera.models.id import Id
@@ -11,9 +13,14 @@ class SceneModel:
     def get_scenes(self) -> list[Scene]:
         return list(self._scenes.values())
 
-    def create_scene(self) -> Scene:
+    def create_scene(self, blend_bytes: bytes) -> Scene:
         id = str(uuid4())
-        self._scenes[id] = Scene(id=id)
+
+        blend_path = tempfile.NamedTemporaryFile(delete=False, suffix=".blend").name
+        with open(blend_path, "wb") as f:
+            f.write(blend_bytes)
+
+        self._scenes[id] = Scene(id, blend_path)
         return self._scenes[id]
 
     def get_scene(self, scene_id: Id) -> Scene | None:
@@ -24,4 +31,9 @@ class SceneModel:
     def delete_scene(self, scene_id: Id):
         if scene_id not in self._scenes:
             return
+
+        scene = self._scenes[scene_id]
+        if os.path.exists(scene.blend_path):
+            os.remove(scene.blend_path)
+
         del self._scenes[scene_id]

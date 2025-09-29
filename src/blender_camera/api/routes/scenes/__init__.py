@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from blender_camera.api.routes.scenes.scene_id import SceneIdRouter
 from blender_camera.models.id import Id
@@ -23,12 +25,23 @@ class ScenesRouter:
             self.create_scene,
             methods=["POST"],
             response_model=Id,
-            responses={201: {"description": "Scene created"}},
+            responses={
+                201: {"description": "Scene created"},
+                400: {"description": "Invalid file format"},
+            },
         )
 
     async def get_scenes(self) -> list[Id]:
         return [scene.id for scene in self._scene_model.get_scenes()]
 
-    async def create_scene(self) -> Id:
-        scene = self._scene_model.create_scene()
+    async def create_scene(
+        self,
+        blend_file: Annotated[UploadFile, File(description="Blender file (.blend)")],
+    ) -> Id:
+        if not blend_file.filename or not blend_file.filename.endswith(".blend"):
+            raise HTTPException(status_code=400, detail="File must be a .blend file")
+
+        blend_bytes = await blend_file.read()
+        scene = self._scene_model.create_scene(blend_bytes=blend_bytes)
+
         return scene.id

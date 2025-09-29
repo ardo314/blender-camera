@@ -122,7 +122,14 @@ class EntityIdRouter:
         if not isinstance(entity, HasPose):
             raise HTTPException(status_code=400, detail="Entity has no pose")
 
-        blender = Blender("untitled.blend")
+        # Get the scene to access the blend file
+        scene = self._scene_model.get_scene(scene_id)
+        if scene is None:
+            raise HTTPException(status_code=404, detail="Scene not found")
+
+        # Use the uploaded blend file if available, otherwise fallback to default
+        blend_file_path = scene.blend_path or "untitled.blend"
+        blender = Blender(blend_file_path)
         ply_bytes = await blender.render_ply(entity)
         return Response(content=ply_bytes, media_type="application/octet-stream")
 
@@ -133,6 +140,13 @@ class EntityIdRouter:
         if not isinstance(entity, HasPose):
             raise HTTPException(status_code=400, detail="Entity has no pose")
 
-        blender = Blender("untitled.blend")
+        # Get the scene to access the blend file
+        scene = self._scene_model.get_scene(scene_id)
+        if scene is None:
+            raise HTTPException(status_code=404, detail="Scene not found")
+
+        # Use the uploaded blend file if available, otherwise fallback to default
+        blend_file_path = scene.blend_path or "untitled.blend"
+        blender = Blender(blend_file_path)
         png_bytes = await blender.render_png(entity)
         return Response(content=png_bytes, media_type="image/png")
