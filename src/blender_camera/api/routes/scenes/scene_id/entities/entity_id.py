@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Response
 
 from blender_camera.blender import Blender
+from blender_camera.models.components.has_id import HasId
 from blender_camera.models.components.has_pose import HasPose
 from blender_camera.models.entities.entity import Entity
 from blender_camera.models.entity_model import EntityModel
@@ -115,13 +116,23 @@ class EntityIdRouter:
         entity.pose = pose
 
     async def _get_entity_pointcloud(self, scene_id: Id, entity_id: Id) -> Response:
-        camera = self._get_entity_with_http_exception(scene_id, entity_id)
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasId):
+            raise HTTPException(status_code=400, detail="Entity has no ID")
+        if not isinstance(entity, HasPose):
+            raise HTTPException(status_code=400, detail="Entity has no pose")
+
         blender = Blender("untitled.blend")
-        ply_bytes = await blender.render_ply(camera)
+        ply_bytes = await blender.render_ply(entity)
         return Response(content=ply_bytes, media_type="application/octet-stream")
 
     async def _get_entity_image(self, scene_id: Id, entity_id: Id) -> Response:
-        camera = self._get_entity_with_http_exception(scene_id, entity_id)
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasId):
+            raise HTTPException(status_code=400, detail="Entity has no ID")
+        if not isinstance(entity, HasPose):
+            raise HTTPException(status_code=400, detail="Entity has no pose")
+
         blender = Blender("untitled.blend")
-        png_bytes = await blender.render_png(camera)
+        png_bytes = await blender.render_png(entity)
         return Response(content=png_bytes, media_type="image/png")
