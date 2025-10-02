@@ -4,7 +4,7 @@ import shutil
 import tempfile
 from contextlib import asynccontextmanager
 from io import BytesIO
-from typing import Union
+from typing import Optional, Union
 
 import Imath
 import numpy as np
@@ -12,10 +12,11 @@ import OpenEXR
 from PIL import Image
 from plyfile import PlyData, PlyElement
 
+from blender_camera.models.components.has_camera_intrinsics import HasCameraIntrinsics
 from blender_camera.models.components.has_id import HasId
 from blender_camera.models.components.has_pose import HasPose
 
-CameraLike = Union[HasId, HasPose]
+CameraLike = Union[HasId, HasPose, Optional[HasCameraIntrinsics]]
 
 
 class Blender:
