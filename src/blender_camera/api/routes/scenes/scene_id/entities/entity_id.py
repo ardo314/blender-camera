@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Response
 
 from blender_camera.blender import Blender
+from blender_camera.models.camera_intrinsics import CameraIntrinsics
+from blender_camera.models.components.has_camera_intrinsics import HasCameraIntrinsics
 from blender_camera.models.components.has_id import HasId
 from blender_camera.models.components.has_pose import HasPose
 from blender_camera.models.entities.entity import Entity
@@ -17,7 +19,7 @@ class EntityIdRouter:
         self.router = APIRouter(prefix="/{entity_id}")
         self.router.add_api_route(
             "",
-            self._get_entity,
+            self._get,
             methods=["GET"],
             responses={
                 200: {"description": "Entity details"},
@@ -26,7 +28,7 @@ class EntityIdRouter:
         )
         self.router.add_api_route(
             "",
-            self._delete_entity,
+            self._delete,
             methods=["DELETE"],
             responses={
                 204: {"description": "Entity deleted"},
@@ -35,17 +37,18 @@ class EntityIdRouter:
         )
         self.router.add_api_route(
             "/pose",
-            self._get_entity_pose,
+            self._get_pose,
             methods=["GET"],
             response_model=Pose,
             responses={
-                200: {"description": "Entity pose"},
+                200: {"description": "Pose"},
                 404: {"description": "Entity not found"},
+                400: {"description": "Entity has no pose"},
             },
         )
         self.router.add_api_route(
             "/pose",
-            self._set_entity_pose,
+            self._set_pose,
             methods=["PUT"],
             response_model=None,
             responses={
@@ -55,8 +58,30 @@ class EntityIdRouter:
             },
         )
         self.router.add_api_route(
+            "/camera-intrinsics",
+            self._get_camera_intrinsics,
+            methods=["GET"],
+            response_model=None,
+            responses={
+                200: {"description": "Camera intrinsics"},
+                404: {"description": "Entity not found"},
+                400: {"description": "Entity has no camera intrinsics"},
+            },
+        )
+        self.router.add_api_route(
+            "/camera-intrinsics",
+            self._set_camera_intrinsics,
+            methods=["PUT"],
+            response_model=None,
+            responses={
+                204: {"description": "Camera intrinsics updated"},
+                404: {"description": "Entity not found"},
+                400: {"description": "Entity has no camera intrinsics"},
+            },
+        )
+        self.router.add_api_route(
             "/pointcloud",
-            self._get_entity_pointcloud,
+            self._get_pointcloud,
             methods=["GET"],
             response_class=Response,
             responses={
@@ -69,7 +94,7 @@ class EntityIdRouter:
         )
         self.router.add_api_route(
             "/image",
-            self._get_entity_image,
+            self._get_image,
             methods=["GET"],
             response_class=Response,
             responses={
@@ -91,21 +116,21 @@ class EntityIdRouter:
             raise HTTPException(status_code=404, detail="Entity not found")
         return entity
 
-    async def _get_entity(self, scene_id: Id, entity_id: Id):
+    async def _get(self, scene_id: Id, entity_id: Id):
         entity = self._get_entity_with_http_exception(scene_id, entity_id)
         return entity.model_dump()
 
-    async def _delete_entity(self, scene_id: Id, entity_id: Id) -> None:
+    async def _delete(self, scene_id: Id, entity_id: Id) -> None:
         entity_model = self._get_entity_model_with_http_exception(scene_id)
         entity_model.delete_entity(entity_id)
 
-    async def _get_entity_pose(self, scene_id: Id, entity_id: Id) -> Pose:
+    async def _get_pose(self, scene_id: Id, entity_id: Id) -> Pose:
         entity = self._get_entity_with_http_exception(scene_id, entity_id)
         if not isinstance(entity, HasPose):
             raise HTTPException(status_code=400, detail="Entity has no pose")
         return entity.pose
 
-    async def _set_entity_pose(self, scene_id: Id, entity_id: Id, pose: Pose):
+    async def _set_pose(self, scene_id: Id, entity_id: Id, pose: Pose):
         entity = self._get_entity_with_http_exception(scene_id, entity_id)
         if not isinstance(entity, HasPose):
             raise HTTPException(status_code=400, detail="Entity has no pose")
@@ -115,7 +140,25 @@ class EntityIdRouter:
 
         entity.pose = pose
 
-    async def _get_entity_pointcloud(self, scene_id: Id, entity_id: Id) -> Response:
+    async def _get_camera_intrinsics(self, scene_id: Id, entity_id: Id):
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasCameraIntrinsics):
+            raise HTTPException(
+                status_code=400, detail="Entity has no camera intrinsics"
+            )
+        return entity.camera_intrinsics
+
+    async def _set_camera_intrinsics(
+        self, scene_id: Id, entity_id: Id, camera_intrinsics: CameraIntrinsics
+    ):
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasCameraIntrinsics):
+            raise HTTPException(
+                status_code=400, detail="Entity has no camera intrinsics"
+            )
+        entity.camera_intrinsics = camera_intrinsics
+
+    async def _get_pointcloud(self, scene_id: Id, entity_id: Id) -> Response:
         entity = self._get_entity_with_http_exception(scene_id, entity_id)
         if not isinstance(entity, HasId):
             raise HTTPException(status_code=400, detail="Entity has no ID")
@@ -133,7 +176,7 @@ class EntityIdRouter:
         ply_bytes = await blender.render_ply(entity)
         return Response(content=ply_bytes, media_type="application/octet-stream")
 
-    async def _get_entity_image(self, scene_id: Id, entity_id: Id) -> Response:
+    async def _get_image(self, scene_id: Id, entity_id: Id) -> Response:
         entity = self._get_entity_with_http_exception(scene_id, entity_id)
         if not isinstance(entity, HasId):
             raise HTTPException(status_code=400, detail="Entity has no ID")
