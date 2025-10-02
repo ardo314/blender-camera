@@ -40,14 +40,24 @@ def _create_camera(state: SceneState) -> bpy.types.Object:
 
     # Create a light (flash) that faces the same way as the camera
     light_data = bpy.data.lights.new(name="CameraFlash", type="POINT")
+    light_data.energy = 1000.0  # Increase light power significantly
     light_obj = bpy.data.objects.new(name="CameraFlash", object_data=light_data)
     bpy.context.collection.objects.link(light_obj)
-    light_obj.location = cam_obj.location
-    # Point light doesn't have rotation, but if you use a SPOT light:
-    # light_data.type = 'SPOT'
-    # light_obj.rotation_mode = cam_obj.rotation_mode
-    # light_obj.rotation_quaternion = cam_obj.rotation_quaternion
-    # For POINT, just place at camera location
+
+    # Position light slightly offset from camera for better illumination
+    light_obj.location = (
+        cam_obj.location.x + 1,
+        cam_obj.location.y + 1,
+        cam_obj.location.z + 1,
+    )
+
+    # Also add a sun light for overall scene illumination
+    sun_data = bpy.data.lights.new(name="Sun", type="SUN")
+    sun_data.energy = 5.0
+    sun_obj = bpy.data.objects.new(name="Sun", object_data=sun_data)
+    bpy.context.collection.objects.link(sun_obj)
+    sun_obj.location = (0, 0, 10)
+    sun_obj.rotation_euler = (0.785, 0, 0.785)  # 45 degrees on X and Z axes
 
     return cam_obj
 
@@ -132,11 +142,78 @@ def _build_compositor(tree, nodes, links, output_dir, basename="frame"):
     return out_color, out_normal, out_depth
 
 
+def _setup_materials():
+    """Ensure all objects have materials that respond to lighting."""
+    for obj in bpy.context.scene.objects:
+        if obj.type == "MESH" and obj.data:
+            # If object has no materials, create a basic one
+            if not obj.data.materials:
+                mat = bpy.data.materials.new(name=f"{obj.name}_Material")
+                mat.use_nodes = True
+
+                # Get the principled BSDF node (default in new materials)
+                nodes = mat.node_tree.nodes
+                principled = nodes.get("Principled BSDF")
+                if principled:
+                    # Set a neutral color and proper roughness
+                    principled.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1.0)
+                    principled.inputs["Roughness"].default_value = 0.5
+                    principled.inputs["Metallic"].default_value = 0.0
+
+                obj.data.materials.append(mat)
+            else:
+                # Ensure existing materials use nodes
+                for mat in obj.data.materials:
+                    if mat:
+                        mat.use_nodes = True
+
+
 def _render_frames(output_dir: str, start: int, end: int, basename: str):
     """
     Render frames in the given range, writing color/normal/depth for each frame.
     """
     scene = bpy.context.scene
+
+    # Set render engine to Cycles for better lighting
+    scene.render.engine = "CYCLES"
+
+    # Configure Cycles settings for good quality
+    scene.cycles.samples = 128  # Reasonable sample count
+    scene.cycles.use_denoising = (
+        False  # Disable denoising since build doesn't support it
+    )
+
+    # Ensure proper world lighting if no world material exists
+    if not scene.world:
+        world = bpy.data.worlds.new("World")
+        scene.world = world
+
+    # Set up a basic world shader for ambient lighting
+    if scene.world and not scene.world.use_nodes:
+        scene.world.use_nodes = True
+        world_nodes = scene.world.node_tree.nodes
+        world_links = scene.world.node_tree.links
+
+        # Clear existing nodes
+        for node in world_nodes:
+            world_nodes.remove(node)
+
+        # Add Background shader
+        bg_node = world_nodes.new(type="ShaderNodeBackground")
+        bg_node.inputs["Color"].default_value = (
+            0.2,
+            0.2,
+            0.2,
+            1.0,
+        )  # Dim ambient light
+        bg_node.inputs["Strength"].default_value = 0.5
+
+        # Add World Output
+        output_node = world_nodes.new(type="ShaderNodeOutputWorld")
+
+        # Connect them
+        world_links.new(bg_node.outputs["Background"], output_node.inputs["Surface"])
+
     rl = scene.view_layers.items()[0][1]
     _setup_passes(rl)
 
@@ -173,5 +250,6 @@ if __name__ == "__main__":
 
     scene_state = _load_scene_state(args.input_path)
     _create_camera(scene_state)
+    _setup_materials()  # Ensure proper materials for lighting
 
     _render_frames(args.output_path, 1, 1, "frame")
