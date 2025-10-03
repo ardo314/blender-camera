@@ -7,8 +7,8 @@ class TestBlenderRender:
     """Integration tests for Blender rendering functionality using real Blender processes."""
 
     @pytest.mark.asyncio
-    async def test_render_ply_returns_valid_exr_bytes(self, blender):
-        """Test that render_ply returns EXR file bytes of expected minimum size."""
+    async def test_render_ply_returns_valid_ply_bytes(self, blender):
+        """Test that render_ply returns PLY file bytes of expected minimum size."""
         # Arrange
         camera = Camera(
             id="test_camera_ply",
@@ -20,6 +20,7 @@ class TestBlenderRender:
                 0.0,
                 0.0,
             ],  # Position camera 5 units away on Z-axis
+            camera_intrinsics=None,
         )
 
         # Act
@@ -28,12 +29,12 @@ class TestBlenderRender:
         # Assert
         assert isinstance(ply_bytes, bytes), "render_ply should return bytes"
         assert len(ply_bytes) > 1000, (
-            f"EXR file should be at least 1KB, got {len(ply_bytes)} bytes"
+            f"PLY file should be at least 1KB, got {len(ply_bytes)} bytes"
         )
 
-        # Check EXR magic bytes (first 4 bytes should be the EXR signature)
-        exr_magic = b"\x76\x2f\x31\x01"  # EXR file signature
-        assert ply_bytes[:4] == exr_magic, "File should have valid EXR magic bytes"
+        # Check PLY magic bytes (should start with "ply\n")
+        ply_magic = b"ply\n"  # PLY file signature
+        assert ply_bytes[:4] == ply_magic, "File should have valid PLY magic bytes"
 
     @pytest.mark.asyncio
     async def test_render_png_returns_valid_png_bytes(self, blender):
@@ -42,6 +43,7 @@ class TestBlenderRender:
         camera = Camera(
             id="test_camera_png",
             pose=[2.0, 2.0, 3.0, 0.1, 0.0, 0.0],  # Slightly angled camera position
+            camera_intrinsics=None,
         )
 
         # Act
@@ -61,10 +63,15 @@ class TestBlenderRender:
     async def test_render_ply_with_different_camera_positions(self, blender):
         """Test that render_ply works with various camera positions and produces different results."""
         # Arrange
-        camera_front = Camera(id="camera_front", pose=[0.0, 0.0, 5.0, 0.0, 0.0, 0.0])
+        camera_front = Camera(
+            id="camera_front",
+            pose=[0.0, 0.0, 5.0, 0.0, 0.0, 0.0],
+            camera_intrinsics=None,
+        )
         camera_side = Camera(
             id="camera_side",
             pose=[5.0, 0.0, 0.0, 0.0, 1.571, 0.0],  # 90 degrees rotation on Y-axis
+            camera_intrinsics=None,
         )
 
         # Act
@@ -97,10 +104,12 @@ class TestBlenderRender:
         camera_close = Camera(
             id="camera_close",
             pose=[0.0, 0.0, 2.0, 0.0, 0.0, 0.0],  # Close to object
+            camera_intrinsics=None,
         )
         camera_far = Camera(
             id="camera_far",
             pose=[0.0, 0.0, 10.0, 0.0, 0.0, 0.0],  # Far from object
+            camera_intrinsics=None,
         )
 
         # Act
@@ -125,38 +134,13 @@ class TestBlenderRender:
         )
 
     @pytest.mark.asyncio
-    async def test_render_ply_and_png_consistency(self, blender):
-        """Test that render_ply and render_png work consistently with the same camera."""
-        # Arrange
-        camera = Camera(id="consistency_test", pose=[1.0, 1.0, 4.0, 0.2, 0.1, 0.0])
-
-        # Act
-        ply_bytes = await blender.render_ply(camera)
-        png_bytes = await blender.render_png(camera)
-
-        # Assert
-        # Both should return valid data
-        assert isinstance(ply_bytes, bytes), "PLY render should return bytes"
-        assert isinstance(png_bytes, bytes), "PNG render should return bytes"
-        assert len(ply_bytes) > 1000, (
-            f"PLY should be at least 1KB, got {len(ply_bytes)} bytes"
-        )
-        assert len(png_bytes) > 1000, (
-            f"PNG should be at least 1KB, got {len(png_bytes)} bytes"
-        )
-
-        # Should have correct file signatures
-        assert ply_bytes[:4] == b"\x76\x2f\x31\x01", "PLY should have EXR signature"
-        png_magic = b"\x89\x50\x4e\x47\x0d\x0a\x1a\x0a"  # PNG file signature
-        assert png_bytes[:8] == png_magic, "PNG should have PNG signature"
-
-    @pytest.mark.asyncio
     async def test_render_with_extreme_camera_positions(self, blender):
         """Test rendering with edge case camera positions."""
         # Arrange - Camera very close to origin
         camera_origin = Camera(
             id="camera_origin",
             pose=[0.0, 0.0, 0.1, 0.0, 0.0, 0.0],  # Very close to origin
+            camera_intrinsics=None,
         )
 
         # Act

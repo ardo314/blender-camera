@@ -120,20 +120,49 @@ class Blender:
 
         # Read depth EXR
         depth_file = OpenEXR.InputFile(depth_path)
-        depth_data = depth_file.channel("Z", FLOAT)  # Assuming depth is in Z channel
+        depth_header = depth_file.header()
+
+        # Get available channels in depth file
+        available_channels = depth_header["channels"].keys()
+
+        # Try common depth channel names
+        depth_channel = None
+        for channel_name in ["Z", "Depth", "R", "G", "B", "A"]:
+            if channel_name in available_channels:
+                depth_channel = channel_name
+                break
+
+        if depth_channel is None:
+            # If no depth channel found, use the first available channel
+            depth_channel = list(available_channels)[0] if available_channels else "R"
+
+        depth_data = depth_file.channel(depth_channel, FLOAT)
         depth = np.frombuffer(depth_data, dtype=np.float32).reshape((height, width))
 
         # Read normals if provided
         normals = None
         if normal_path and os.path.exists(normal_path):
             normal_file = OpenEXR.InputFile(normal_path)
-            (NX, NY, NZ) = normal_file.channels(
-                "RGB", FLOAT
-            )  # Assuming normals stored as RGB
-            nx = np.frombuffer(NX, dtype=np.float32).reshape((height, width))
-            ny = np.frombuffer(NY, dtype=np.float32).reshape((height, width))
-            nz = np.frombuffer(NZ, dtype=np.float32).reshape((height, width))
-            normals = np.stack([nx, ny, nz], axis=-1)
+            normal_header = normal_file.header()
+
+            # Get available channels in normal file
+            normal_channels = normal_header["channels"].keys()
+
+            # Try to read normal channels - they might be XYZ format or RGB format
+            if all(ch in normal_channels for ch in ["X", "Y", "Z"]):
+                NX = normal_file.channel("X", FLOAT)
+                NY = normal_file.channel("Y", FLOAT)
+                NZ = normal_file.channel("Z", FLOAT)
+                nx = np.frombuffer(NX, dtype=np.float32).reshape((height, width))
+                ny = np.frombuffer(NY, dtype=np.float32).reshape((height, width))
+                nz = np.frombuffer(NZ, dtype=np.float32).reshape((height, width))
+                normals = np.stack([nx, ny, nz], axis=-1)
+            elif all(ch in normal_channels for ch in ["R", "G", "B"]):
+                (NX, NY, NZ) = normal_file.channels("RGB", FLOAT)
+                nx = np.frombuffer(NX, dtype=np.float32).reshape((height, width))
+                ny = np.frombuffer(NY, dtype=np.float32).reshape((height, width))
+                nz = np.frombuffer(NZ, dtype=np.float32).reshape((height, width))
+                normals = np.stack([nx, ny, nz], axis=-1)
 
         # Create 3D points from depth
         # Assuming standard camera intrinsics - you may need to adjust these
@@ -165,7 +194,7 @@ class Blender:
         if normals is not None:
             normals_flat = normals.reshape(-1, 3)[valid_indices]
 
-        # Create vertex data array for PLY
+            # Create vertex data array for PLY
         vertex_data = []
         for i in range(len(points_3d)):
             vertex = [
