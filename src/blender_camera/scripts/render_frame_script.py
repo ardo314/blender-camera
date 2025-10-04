@@ -17,6 +17,11 @@ def convert_depth_exr_to_np(path: str) -> np.ndarray:  # Read depth EXR
     depth_file = OpenEXR.InputFile(path)
     depth_header = depth_file.header()
 
+    # Get the data window (the actual image bounds)
+    dw = depth_header["dataWindow"]
+    width = dw.max.x - dw.min.x + 1
+    height = dw.max.y - dw.min.y + 1
+
     # Get available channels in depth file
     available_channels = depth_header["channels"].keys()
 
@@ -39,6 +44,11 @@ def convert_normal_exr_to_np(path: str) -> np.ndarray:
     normal_file = OpenEXR.InputFile(path)
     normal_header = normal_file.header()
 
+    # Get the data window (the actual image bounds)
+    dw = normal_header["dataWindow"]
+    width = dw.max.x - dw.min.x + 1
+    height = dw.max.y - dw.min.y + 1
+
     # Get available channels in normal file
     normal_channels = normal_header["channels"].keys()
 
@@ -57,6 +67,12 @@ def convert_normal_exr_to_np(path: str) -> np.ndarray:
         ny = np.frombuffer(NY, dtype=np.float32).reshape((height, width))
         nz = np.frombuffer(NZ, dtype=np.float32).reshape((height, width))
         normals = np.stack([nx, ny, nz], axis=-1)
+    else:
+        # If no suitable channels found, create a default normal map
+        normals = np.zeros((height, width, 3), dtype=np.float32)
+        normals[:, :, 2] = 1.0  # Default to pointing towards camera (0, 0, 1)
+
+    return normals
 
 
 def convert_color_exr_to_np(path: str) -> np.ndarray:
@@ -114,6 +130,7 @@ class RenderFrameScript:
             normal_path = os.path.join(output_path, "frame_normal_0001.exr")
 
             return Frame(
+                camera,
                 convert_depth_exr_to_np(depth_path),
                 convert_normal_exr_to_np(normal_path),
                 convert_color_exr_to_np(color_path),
