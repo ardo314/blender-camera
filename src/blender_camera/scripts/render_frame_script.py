@@ -13,7 +13,7 @@ from blender_camera.models.frame import Frame
 FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
 
 
-def _write_tmp_state(self, camera: CameraLike) -> str:
+def _write_tmp_state(camera: CameraLike) -> str:
     """Saves camera data to a temporary JSON file and returns the file path."""
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
     with open(tmp_file.name, "w") as f:

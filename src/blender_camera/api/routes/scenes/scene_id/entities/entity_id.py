@@ -7,6 +7,7 @@ from blender_camera.models.components.has_id import HasId
 from blender_camera.models.components.has_pose import HasPose
 from blender_camera.models.entities.entity import Entity
 from blender_camera.models.entity_model import EntityModel
+from blender_camera.models.frame import Frame
 from blender_camera.models.id import Id
 from blender_camera.models.pose import Pose, validate_pose
 from blender_camera.models.scene_model import SceneModel
@@ -94,8 +95,28 @@ class EntityIdRouter:
             },
         )
         self.router.add_api_route(
-            "/image",
-            self._get_image,
+            "/normals",
+            self._get_normals,
+            methods=["GET"],
+            response_class=Response,
+            responses={
+                200: {"description": "Rendered image", "content": {"image/png": {}}},
+                404: {"description": "Camera not found"},
+            },
+        )
+        self.router.add_api_route(
+            "/depth",
+            self._get_depth,
+            methods=["GET"],
+            response_class=Response,
+            responses={
+                200: {"description": "Rendered image", "content": {"image/png": {}}},
+                404: {"description": "Camera not found"},
+            },
+        )
+        self.router.add_api_route(
+            "/colors",
+            self._get_colors,
             methods=["GET"],
             response_class=Response,
             responses={
@@ -116,6 +137,21 @@ class EntityIdRouter:
         if entity is None:
             raise HTTPException(status_code=404, detail="Entity not found")
         return entity
+
+    async def _render_frame_for_camera(self, scene_id: Id, entity_id: Id) -> Frame:
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasId):
+            raise HTTPException(status_code=400, detail="Entity has no ID")
+        if not isinstance(entity, HasPose):
+            raise HTTPException(status_code=400, detail="Entity has no pose")
+
+        scene = self._scene_model.get_scene(scene_id)
+        if scene is None:
+            raise HTTPException(status_code=404, detail="Scene not found")
+
+        blender = Blender(scene.blend_path)
+        render_frame_script = RenderFrameScript(blender)
+        return await render_frame_script.execute(entity)
 
     async def _get(self, scene_id: Id, entity_id: Id):
         entity = self._get_entity_with_http_exception(scene_id, entity_id)
@@ -160,37 +196,19 @@ class EntityIdRouter:
         entity.camera_intrinsics = camera_intrinsics
 
     async def _get_pointcloud(self, scene_id: Id, entity_id: Id) -> Response:
-        entity = self._get_entity_with_http_exception(scene_id, entity_id)
-        if not isinstance(entity, HasId):
-            raise HTTPException(status_code=400, detail="Entity has no ID")
-        if not isinstance(entity, HasPose):
-            raise HTTPException(status_code=400, detail="Entity has no pose")
+        frame = await self._render_frame_for_camera(scene_id, entity_id)
+        return Response(
+            content=frame.to_ply_bytes(), media_type="application/octet-stream"
+        )
 
-        # Get the scene to access the blend file
-        scene = self._scene_model.get_scene(scene_id)
-        if scene is None:
-            raise HTTPException(status_code=404, detail="Scene not found")
+    async def _get_depth(self, scene_id: Id, entity_id: Id) -> Response:
+        frame = await self._render_frame_for_camera(scene_id, entity_id)
+        return Response(content=frame.to_depth_png_bytes(), media_type="image/png")
 
-        blender = Blender(scene.blend_path)
-        render_frame_script = RenderFrameScript(blender)
-        frame = await render_frame_script.execute(entity)
-        ply_bytes = frame.to_ply_bytes()
-        return Response(content=ply_bytes, media_type="application/octet-stream")
+    async def _get_normals(self, scene_id: Id, entity_id: Id) -> Response:
+        frame = await self._render_frame_for_camera(scene_id, entity_id)
+        return Response(content=frame.to_normal_png_bytes(), media_type="image/png")
 
-    async def _get_image(self, scene_id: Id, entity_id: Id) -> Response:
-        entity = self._get_entity_with_http_exception(scene_id, entity_id)
-        if not isinstance(entity, HasId):
-            raise HTTPException(status_code=400, detail="Entity has no ID")
-        if not isinstance(entity, HasPose):
-            raise HTTPException(status_code=400, detail="Entity has no pose")
-
-        # Get the scene to access the blend file
-        scene = self._scene_model.get_scene(scene_id)
-        if scene is None:
-            raise HTTPException(status_code=404, detail="Scene not found")
-
-        blender = Blender(scene.blend_path)
-        render_frame_script = RenderFrameScript(blender)
-        frame = await render_frame_script.execute(entity)
-        png_bytes = frame.to_color_png_bytes()
-        return Response(content=png_bytes, media_type="image/png")
+    async def _get_colors(self, scene_id: Id, entity_id: Id) -> Response:
+        frame = await self._render_frame_for_camera(scene_id, entity_id)
+        return Response(content=frame.to_color_png_bytes(), media_type="image/png")
