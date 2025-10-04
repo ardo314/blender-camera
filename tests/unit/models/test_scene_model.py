@@ -1,6 +1,5 @@
 import os
-import tempfile
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -228,7 +227,8 @@ class TestSceneModel:
     ):
         """Test that create_scene uses NamedTemporaryFile for blend file creation."""
         # Arrange
-        mock_file = tempfile.NamedTemporaryFile(delete=False, suffix=".blend")
+        mock_file = Mock()
+        mock_file.name = "/tmp/test_blend_file.blend"
         mock_tempfile.return_value = mock_file
         test_path = mock_file.name
 
