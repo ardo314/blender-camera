@@ -46,8 +46,4 @@ class Frame:
         return _to_8bit_png(rgb)
 
     def to_ply_bytes(self) -> bytes:
-        return self._convert_exr_to_ply(
-            self._color,
-            self._depth,
-            self._normal if self._normal is not None else None,
-        )
+        raise NotImplementedError("PLY export not implemented yet")
