@@ -35,7 +35,6 @@ class Frame:
 
     def to_depth_png_bytes(self) -> bytes:
         depth = np.clip(self._depth, 0.0, 1.0)
-
         return _to_8bit_png(depth)
 
     def to_normal_png_bytes(self) -> bytes:
