@@ -3,6 +3,7 @@ from io import BytesIO
 import numpy as np
 from numpy.typing import NDArray
 from PIL import Image
+from plyfile import PlyData, PlyElement
 
 from blender_camera.models.entities.camera import CameraLike
 
@@ -105,31 +106,60 @@ class Frame:
                 normal_vec = self._normal[y, x]
                 normals.append(normal_vec)
 
-        # Create PLY header
+        # Convert to numpy arrays for plyfile
         num_points = len(points)
-        header = f"""ply
-format ascii 1.0
-element vertex {num_points}
-property float x
-property float y
-property float z
-property float nx
-property float ny
-property float nz
-property uchar red
-property uchar green
-property uchar blue
-end_header
-"""
+        if num_points == 0:
+            # Handle case with no valid points
+            vertex_data = np.array(
+                [],
+                dtype=[
+                    ("x", "f4"),
+                    ("y", "f4"),
+                    ("z", "f4"),
+                    ("nx", "f4"),
+                    ("ny", "f4"),
+                    ("nz", "f4"),
+                    ("red", "u1"),
+                    ("green", "u1"),
+                    ("blue", "u1"),
+                ],
+            )
+        else:
+            points_array = np.array(points, dtype=np.float32)
+            normals_array = np.array(normals, dtype=np.float32)
+            colors_array = np.array(colors, dtype=np.uint8)
 
-        # Create PLY data
-        ply_data = header
-        for i in range(num_points):
-            point = points[i]
-            normal = normals[i]
-            color = colors[i]
-            ply_data += f"{point[0]:.6f} {point[1]:.6f} {point[2]:.6f} "
-            ply_data += f"{normal[0]:.6f} {normal[1]:.6f} {normal[2]:.6f} "
-            ply_data += f"{color[0]} {color[1]} {color[2]}\n"
+            # Create structured array for plyfile
+            vertex_data = np.empty(
+                num_points,
+                dtype=[
+                    ("x", "f4"),
+                    ("y", "f4"),
+                    ("z", "f4"),
+                    ("nx", "f4"),
+                    ("ny", "f4"),
+                    ("nz", "f4"),
+                    ("red", "u1"),
+                    ("green", "u1"),
+                    ("blue", "u1"),
+                ],
+            )
 
-        return ply_data.encode("utf-8")
+            vertex_data["x"] = points_array[:, 0]
+            vertex_data["y"] = points_array[:, 1]
+            vertex_data["z"] = points_array[:, 2]
+            vertex_data["nx"] = normals_array[:, 0]
+            vertex_data["ny"] = normals_array[:, 1]
+            vertex_data["nz"] = normals_array[:, 2]
+            vertex_data["red"] = colors_array[:, 0]
+            vertex_data["green"] = colors_array[:, 1]
+            vertex_data["blue"] = colors_array[:, 2]
+
+        # Create PLY element and data
+        vertex_element = PlyElement.describe(vertex_data, "vertex")
+        ply_data = PlyData([vertex_element], text=True)
+
+        # Write to bytes
+        buffer = BytesIO()
+        ply_data.write(buffer)
+        return buffer.getvalue()
