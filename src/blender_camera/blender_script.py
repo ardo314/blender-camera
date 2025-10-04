@@ -83,7 +83,8 @@ def _build_compositor(tree, nodes, links, output_dir, basename="frame"):
     Build compositor nodes:
     - Input: Render Layers
     - Remap depth
-    - File Output for color, normal, depth
+    - File Output for color, normal, depth (EXR for precision)
+    - Additional PNG outputs for color and normal (for easy verification)
     Returns the FileOutput nodes (color, normal, depth).
     """
     # Render Layers node
@@ -115,10 +116,21 @@ def _build_compositor(tree, nodes, links, output_dir, basename="frame"):
     out_depth.label = "FileOut_Depth"
     out_depth.location = (400, -200)
 
+    # Additional PNG outputs for easy verification
+    out_color_png = nodes.new(type="CompositorNodeOutputFile")
+    out_color_png.label = "FileOut_Color_PNG"
+    out_color_png.location = (600, 200)
+
+    out_normal_png = nodes.new(type="CompositorNodeOutputFile")
+    out_normal_png.label = "FileOut_Normal_PNG"
+    out_normal_png.location = (600, 0)
+
     # Set base path to the output directory
     out_color.base_path = output_dir
     out_normal.base_path = output_dir
     out_depth.base_path = output_dir
+    out_color_png.base_path = output_dir
+    out_normal_png.base_path = output_dir
 
     # Configure formats (you can choose PNG, EXR, etc.)
     # For depth and normal we often want float formats (EXR)
@@ -129,15 +141,28 @@ def _build_compositor(tree, nodes, links, output_dir, basename="frame"):
         # For depth you could also force BW or keep RGBA
         # fmt.color_mode = 'BW'  # optional
 
+    # Configure PNG formats for easy verification
+    for node in (out_color_png, out_normal_png):
+        fmt = node.format
+        fmt.file_format = "PNG"
+        fmt.color_depth = "8"
+        fmt.color_mode = "RGBA"
+
     # Link outputs
     links.new(rl.outputs["Image"], out_color.inputs[0])
     links.new(rl.outputs["Normal"], out_normal.inputs[0])
     links.new(map_depth.outputs["Value"], out_depth.inputs[0])
 
+    # Link PNG outputs
+    links.new(rl.outputs["Image"], out_color_png.inputs[0])
+    links.new(rl.outputs["Normal"], out_normal_png.inputs[0])
+
     # Set the filename patterns for naming using default slots (index 0)
     out_color.file_slots[0].path = basename + "_color_"
     out_normal.file_slots[0].path = basename + "_normal_"
     out_depth.file_slots[0].path = basename + "_depth_"
+    out_color_png.file_slots[0].path = basename + "_color_png_"
+    out_normal_png.file_slots[0].path = basename + "_normal_png_"
 
     return out_color, out_normal, out_depth
 
