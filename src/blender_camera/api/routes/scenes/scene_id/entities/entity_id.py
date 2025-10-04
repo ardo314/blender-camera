@@ -10,6 +10,7 @@ from blender_camera.models.entity_model import EntityModel
 from blender_camera.models.id import Id
 from blender_camera.models.pose import Pose, validate_pose
 from blender_camera.models.scene_model import SceneModel
+from blender_camera.scripts.render_frame_script import RenderFrameScript
 
 
 class EntityIdRouter:
@@ -170,10 +171,10 @@ class EntityIdRouter:
         if scene is None:
             raise HTTPException(status_code=404, detail="Scene not found")
 
-        # Use the uploaded blend file if available, otherwise fallback to default
-        blend_file_path = scene.blend_path or "untitled.blend"
-        blender = Blender(blend_file_path)
-        ply_bytes = await blender.render_ply(entity)
+        blender = Blender(scene.blend_path)
+        render_frame_script = RenderFrameScript(blender)
+        frame = await render_frame_script.execute(entity)
+        ply_bytes = frame.to_ply_bytes()
         return Response(content=ply_bytes, media_type="application/octet-stream")
 
     async def _get_image(self, scene_id: Id, entity_id: Id) -> Response:
@@ -188,8 +189,8 @@ class EntityIdRouter:
         if scene is None:
             raise HTTPException(status_code=404, detail="Scene not found")
 
-        # Use the uploaded blend file if available, otherwise fallback to default
-        blend_file_path = scene.blend_path or "untitled.blend"
-        blender = Blender(blend_file_path)
-        png_bytes = await blender.render_png(entity)
+        blender = Blender(scene.blend_path)
+        render_frame_script = RenderFrameScript(blender)
+        frame = await render_frame_script.execute(entity)
+        png_bytes = frame.to_color_png_bytes()
         return Response(content=png_bytes, media_type="image/png")
