@@ -102,8 +102,8 @@ def convert_normal_exr_to_np(path: str, camera: CameraLike) -> np.ndarray:
         # Apply the inverse rotation (transpose for orthogonal matrices)
         normals_camera = (R_world_to_camera.T @ normals_flat.T).T
 
-        # Reshape back to original shape
-        normals = normals_camera.reshape(original_shape)
+        # Reshape back to original shape and ensure float32 dtype
+        normals = normals_camera.reshape(original_shape).astype(np.float32)
 
     return normals
 
