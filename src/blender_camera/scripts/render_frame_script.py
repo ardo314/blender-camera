@@ -13,7 +13,7 @@ from blender_camera.models.frame import Frame
 FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
 
 
-def convert_depth_exr_to_np(path: str) -> np.ndarray:  # Read depth EXR
+def _convert_depth_exr_to_np(path: str) -> np.ndarray:  # Read depth EXR
     depth_file = OpenEXR.InputFile(path)
     depth_header = depth_file.header()
 
@@ -40,7 +40,7 @@ def convert_depth_exr_to_np(path: str) -> np.ndarray:  # Read depth EXR
     return np.frombuffer(depth_data, dtype=np.float32).reshape((height, width))
 
 
-def convert_normal_exr_to_np(path: str, camera: CameraLike) -> np.ndarray:
+def _convert_normal_exr_to_np(path: str, camera: CameraLike) -> np.ndarray:
     normal_file = OpenEXR.InputFile(path)
     normal_header = normal_file.header()
 
@@ -108,7 +108,7 @@ def convert_normal_exr_to_np(path: str, camera: CameraLike) -> np.ndarray:
     return normals
 
 
-def convert_color_exr_to_np(path: str) -> np.ndarray:
+def _convert_color_exr_to_np(path: str) -> np.ndarray:
     """Convert EXR file to PNG format and return as bytes."""
     # Open the EXR file
     exr_file = OpenEXR.InputFile(path)
@@ -164,9 +164,9 @@ class RenderFrameScript:
 
             return Frame(
                 camera,
-                convert_depth_exr_to_np(depth_path),
-                convert_normal_exr_to_np(normal_path, camera),
-                convert_color_exr_to_np(color_path),
+                _convert_depth_exr_to_np(depth_path),
+                _convert_normal_exr_to_np(normal_path, camera),
+                _convert_color_exr_to_np(color_path),
             )
         finally:
             os.remove(input_path)
