@@ -13,6 +13,14 @@ from blender_camera.models.frame import Frame
 FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
 
 
+def _write_tmp_state(self, camera: CameraLike) -> str:
+    """Saves camera data to a temporary JSON file and returns the file path."""
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+    with open(tmp_file.name, "w") as f:
+        f.write(camera.model_dump_json())
+    return tmp_file.name
+
+
 def _convert_depth_exr_to_np(path: str) -> np.ndarray:  # Read depth EXR
     depth_file = OpenEXR.InputFile(path)
     depth_header = depth_file.header()
@@ -136,15 +144,8 @@ class RenderFrameScript:
     def __init__(self, blender: Blender):
         self._blender = blender
 
-    def _write_tmp_state(self, camera: CameraLike) -> str:
-        """Saves camera data to a temporary JSON file and returns the file path."""
-        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
-        with open(tmp_file.name, "w") as f:
-            f.write(camera.model_dump_json())
-        return tmp_file.name
-
     async def execute(self, camera: CameraLike) -> Frame:
-        input_path = self._write_tmp_state(camera)
+        input_path = _write_tmp_state(camera)
         output_path = tempfile.TemporaryDirectory(delete=False).name
 
         try:
