@@ -1,22 +1,8 @@
 import os
 from unittest.mock import Mock, patch
 
-import pytest
-
 from blender_camera.models.scene import Scene
 from blender_camera.models.scene_model import SceneModel
-
-
-@pytest.fixture
-def scene_model():
-    """Create a fresh SceneModel instance for testing."""
-    return SceneModel()
-
-
-@pytest.fixture
-def sample_blend_data():
-    """Sample blend file data for testing."""
-    return b"fake blend file content"
 
 
 class TestSceneModel:

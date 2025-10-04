@@ -20,12 +20,6 @@ class MockCamera(Camera):
 
 
 @pytest.fixture
-def entity_model():
-    """Create a fresh EntityModel instance for testing."""
-    return EntityModel()
-
-
-@pytest.fixture
 def sample_entity():
     """Create a sample entity for testing."""
     return MockEntity(id="test-entity-1")
