@@ -11,7 +11,6 @@ dependencies = [
     "open3d>=0.19.0",
     "openexr>=3.4.0",
     "pillow>=11.3.0",
-    "plyfile>=1.1.2",
 ]
 
 [dependency-groups]

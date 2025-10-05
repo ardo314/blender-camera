@@ -94,6 +94,7 @@ def _build_compositor(tree, nodes, links, output_dir, basename="frame"):
     # Map / remap node for depth (optional, to scale Z into displayable range)
     map_depth = nodes.new(type="CompositorNodeMapRange")
     map_depth.location = (200, -200)
+
     # You may adjust these depending on your scene’s depth range:
     map_depth.inputs["From Min"].default_value = 0.0
     map_depth.inputs["From Max"].default_value = 50.0  # e.g. 50 units away
@@ -107,30 +108,21 @@ def _build_compositor(tree, nodes, links, output_dir, basename="frame"):
     out_color = nodes.new(type="CompositorNodeOutputFile")
     out_color.label = "FileOut_Color"
     out_color.location = (400, 200)
+
     # File Output: normals
     out_normal = nodes.new(type="CompositorNodeOutputFile")
     out_normal.label = "FileOut_Normal"
     out_normal.location = (400, 0)
+
     # File Output: depth
     out_depth = nodes.new(type="CompositorNodeOutputFile")
     out_depth.label = "FileOut_Depth"
     out_depth.location = (400, -200)
 
-    # Additional PNG outputs for easy verification
-    out_color_png = nodes.new(type="CompositorNodeOutputFile")
-    out_color_png.label = "FileOut_Color_PNG"
-    out_color_png.location = (600, 200)
-
-    out_normal_png = nodes.new(type="CompositorNodeOutputFile")
-    out_normal_png.label = "FileOut_Normal_PNG"
-    out_normal_png.location = (600, 0)
-
     # Set base path to the output directory
     out_color.base_path = output_dir
     out_normal.base_path = output_dir
     out_depth.base_path = output_dir
-    out_color_png.base_path = output_dir
-    out_normal_png.base_path = output_dir
 
     # Configure formats (you can choose PNG, EXR, etc.)
     # For depth and normal we often want float formats (EXR)
@@ -141,28 +133,15 @@ def _build_compositor(tree, nodes, links, output_dir, basename="frame"):
         # For depth you could also force BW or keep RGBA
         # fmt.color_mode = 'BW'  # optional
 
-    # Configure PNG formats for easy verification
-    for node in (out_color_png, out_normal_png):
-        fmt = node.format
-        fmt.file_format = "PNG"
-        fmt.color_depth = "8"
-        fmt.color_mode = "RGBA"
-
     # Link outputs
     links.new(rl.outputs["Image"], out_color.inputs[0])
     links.new(rl.outputs["Normal"], out_normal.inputs[0])
     links.new(map_depth.outputs["Value"], out_depth.inputs[0])
 
-    # Link PNG outputs
-    links.new(rl.outputs["Image"], out_color_png.inputs[0])
-    links.new(rl.outputs["Normal"], out_normal_png.inputs[0])
-
     # Set the filename patterns for naming using default slots (index 0)
     out_color.file_slots[0].path = basename + "_color_"
     out_normal.file_slots[0].path = basename + "_normal_"
     out_depth.file_slots[0].path = basename + "_depth_"
-    out_color_png.file_slots[0].path = basename + "_color_png_"
-    out_normal_png.file_slots[0].path = basename + "_normal_png_"
 
     return out_color, out_normal, out_depth
 

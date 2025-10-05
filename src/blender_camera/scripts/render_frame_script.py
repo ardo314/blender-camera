@@ -5,6 +5,7 @@ import tempfile
 import Imath
 import numpy as np
 import OpenEXR
+from loguru import logger
 
 from blender_camera.blender import Blender
 from blender_camera.models.entities.camera import CameraLike
@@ -49,6 +50,7 @@ def _convert_depth_exr_to_np(path: str) -> np.ndarray:  # Read depth EXR
 
 
 def _convert_normal_exr_to_np(path: str, camera: CameraLike) -> np.ndarray:
+    logger.info("Converting normal EXR to numpy array")
     normal_file = OpenEXR.InputFile(path)
     normal_header = normal_file.header()
 
@@ -67,6 +69,8 @@ def _convert_normal_exr_to_np(path: str, camera: CameraLike) -> np.ndarray:
 
     # Transform normals from world space to camera space
     if hasattr(camera, "pose") and camera.pose is not None:
+        logger.info("Transform normals to camera space")
+
         # Extract rotation angles from pose [x, y, z, rx, ry, rz]
         rx, ry, rz = camera.pose[3], camera.pose[4], camera.pose[5]
 
@@ -98,6 +102,7 @@ def _convert_normal_exr_to_np(path: str, camera: CameraLike) -> np.ndarray:
         # Reshape back to original shape and ensure float32 dtype
         normals = normals_camera.reshape(original_shape).astype(np.float32)
 
+    logger.info("Finished converting normals")
     return normals
 
 

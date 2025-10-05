@@ -127,7 +127,6 @@ dependencies = [
     { name = "open3d" },
     { name = "openexr" },
     { name = "pillow" },
-    { name = "plyfile" },
 ]
 
 [package.dev-dependencies]
@@ -147,7 +146,6 @@ requires-dist = [
     { name = "open3d", specifier = ">=0.19.0" },
     { name = "openexr", specifier = ">=3.4.0" },
     { name = "pillow", specifier = ">=11.3.0" },
-    { name = "plyfile", specifier = ">=1.1.2" },
 ]
 
 [package.metadata.requires-dev]
@@ -1322,18 +1320,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
-]
-
-[[package]]
-name = "plyfile"
-version = "1.1.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3e/2e/212e061f2dfa6c6510d4d144819a3e23039c6d4c30731bd023c32da15d8c/plyfile-1.1.2.tar.gz", hash = "sha256:bfb2d88cb3e369cae56df8cf4d107fbfd7beef49ed6cf8ef6b2931b321af9def", size = 36078, upload-time = "2025-06-01T07:35:24.462Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/55/48/600cc57763e82a7d305f816d79fe8267c43e74487e144744349c2aa9f6fd/plyfile-1.1.2-py3-none-any.whl", hash = "sha256:f5529face448b14e1927382bb05231827268650f3411b467b17bd6438eb0b83d", size = 36357, upload-time = "2025-06-01T07:35:23.185Z" },
 ]
 
 [[package]]

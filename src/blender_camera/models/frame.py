@@ -21,6 +21,9 @@ def _to_8bit_png(image: NDArray[np.float32]) -> bytes:
     return img_bytes.getvalue()
 
 
+from loguru import logger
+
+
 class Frame:
     def __init__(
         self,
@@ -50,6 +53,7 @@ class Frame:
         """Convert frame data to PLY point cloud format."""
         height, width = self._depth.shape
 
+        logger.info("Converting frame to PLY bytes")
         # Get camera intrinsics if available
         fx = fy = cx = cy = None
         try:
@@ -82,6 +86,7 @@ class Frame:
         colors = []
         normals = []
 
+        logger.info("start loop")
         for y in range(height):
             for x in range(width):
                 depth_val = self._depth[y, x]
@@ -106,6 +111,7 @@ class Frame:
                 normal_vec = self._normal[y, x]
                 normals.append(normal_vec)
 
+        logger.info("end loop")
         # Convert to numpy arrays for plyfile
         num_points = len(points)
         if num_points == 0:
@@ -155,6 +161,7 @@ class Frame:
             vertex_data["green"] = colors_array[:, 1]
             vertex_data["blue"] = colors_array[:, 2]
 
+        logger.info("vertex data loop")
         # Create PLY element and data
         vertex_element = PlyElement.describe(vertex_data, "vertex")
         ply_data = PlyData([vertex_element], text=True)
@@ -162,4 +169,6 @@ class Frame:
         # Write to bytes
         buffer = BytesIO()
         ply_data.write(buffer)
+
+        logger.info("Done frame to PLY bytes")
         return buffer.getvalue()
