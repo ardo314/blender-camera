@@ -8,7 +8,10 @@ from blender_camera.blender import Blender
 from blender_camera.models.camera_intrinsics import CameraIntrinsics
 from blender_camera.models.entities.camera import Camera
 from blender_camera.models.frame import Frame
-from blender_camera.scripts.render_frame_script import RenderFrameScript
+from blender_camera.scripts.render_frame_script import (
+    RenderFrameScript,
+    _write_tmp_state,
+)
 
 
 @pytest.fixture
@@ -254,12 +257,10 @@ class TestRenderFrameScript:
         # Should not have left behind any of our temporary files
         assert len(our_temp_files) == 0
 
-    def test_write_tmp_state_should_create_valid_json(
-        self, render_frame_script: RenderFrameScript, sample_camera: Camera
-    ):
+    def test_write_tmp_state_should_create_valid_json(self, sample_camera: Camera):
         """Test that _write_tmp_state creates a valid JSON file."""
         # Act
-        tmp_path = render_frame_script._write_tmp_state(sample_camera)
+        tmp_path = _write_tmp_state(sample_camera)
 
         try:
             # Assert

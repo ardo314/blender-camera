@@ -18,9 +18,10 @@ class Blender:
         )
         stdout, stderr = await proc.communicate()
         logger.info(f"[blender] stdout: {stdout.decode()}")
-        logger.error(f"[blender] stderr: {stderr.decode()}")
 
         if proc.returncode != 0:
+            logger.error(f"[blender] stderr: {stderr.decode()}")
+
             raise RuntimeError(
                 f"Blender process failed with exit code {proc.returncode}"
             )

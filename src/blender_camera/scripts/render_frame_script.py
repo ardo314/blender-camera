@@ -57,28 +57,13 @@ def _convert_normal_exr_to_np(path: str, camera: CameraLike) -> np.ndarray:
     width = dw.max.x - dw.min.x + 1
     height = dw.max.y - dw.min.y + 1
 
-    # Get available channels in normal file
-    normal_channels = normal_header["channels"].keys()
-
-    # Try to read normal channels - they might be XYZ format or RGB format
-    if all(ch in normal_channels for ch in ["X", "Y", "Z"]):
-        NX = normal_file.channel("X", FLOAT)
-        NY = normal_file.channel("Y", FLOAT)
-        NZ = normal_file.channel("Z", FLOAT)
-        nx = np.frombuffer(NX, dtype=np.float32).reshape((height, width))
-        ny = np.frombuffer(NY, dtype=np.float32).reshape((height, width))
-        nz = np.frombuffer(NZ, dtype=np.float32).reshape((height, width))
-        normals = np.stack([nx, ny, nz], axis=-1)
-    elif all(ch in normal_channels for ch in ["R", "G", "B"]):
-        (NX, NY, NZ) = normal_file.channels("RGB", FLOAT)
-        nx = np.frombuffer(NX, dtype=np.float32).reshape((height, width))
-        ny = np.frombuffer(NY, dtype=np.float32).reshape((height, width))
-        nz = np.frombuffer(NZ, dtype=np.float32).reshape((height, width))
-        normals = np.stack([nx, ny, nz], axis=-1)
-    else:
-        # If no suitable channels found, create a default normal map
-        normals = np.zeros((height, width, 3), dtype=np.float32)
-        normals[:, :, 2] = 1.0  # Default to pointing towards camera (0, 0, 1)
+    NX = normal_file.channel("X", FLOAT)
+    NY = normal_file.channel("Y", FLOAT)
+    NZ = normal_file.channel("Z", FLOAT)
+    nx = np.frombuffer(NX, dtype=np.float32).reshape((height, width))
+    ny = np.frombuffer(NY, dtype=np.float32).reshape((height, width))
+    nz = np.frombuffer(NZ, dtype=np.float32).reshape((height, width))
+    normals = np.stack([nx, ny, nz], axis=-1)
 
     # Transform normals from world space to camera space
     if hasattr(camera, "pose") and camera.pose is not None:
