@@ -1,3 +1,4 @@
+import os
 import tempfile
 from io import BytesIO
 
@@ -84,14 +85,32 @@ class Frame:
         rgb = np.clip(self._color, 0.0, 1.0)
         return _to_8bit_png(rgb)
 
-    def to_ply_bytes(self) -> bytes:
+    def to_pointcloud(self) -> o3d.geometry.PointCloud:
+        """Create and return an Open3D pointcloud initialized with points, normals, and colors."""
         pointcloud = o3d.geometry.PointCloud()
-        pointcloud.points = self._depth_to_positions().reshape(-1, 3)
-        pointcloud.normals = np.clip(self._normal, 0.0, 1.0).reshape(-1, 3)
-        pointcloud.colors = np.clip(self._color, 0.0, 1.0).reshape(-1, 3)
 
-        temp_file = tempfile.TemporaryFile(delete=True)
-        o3d.io.write_point_cloud(temp_file.name, pointcloud, write_ascii=True)
-        temp_file.seek(0)
-        ply_bytes = temp_file.read()
-        return ply_bytes
+        # Get positions, normals, and colors as flattened arrays
+        positions = self._depth_to_positions().reshape(-1, 3)
+        normals = np.clip(self._normal, 0.0, 1.0).reshape(-1, 3)
+        colors = np.clip(self._color, 0.0, 1.0).reshape(-1, 3)
+
+        # Initialize the Open3D pointcloud with points, normals, and colors
+        pointcloud.points = o3d.utility.Vector3dVector(positions)
+        pointcloud.normals = o3d.utility.Vector3dVector(normals)
+        pointcloud.colors = o3d.utility.Vector3dVector(colors)
+
+        return pointcloud
+
+    def to_ply_bytes(self) -> bytes:
+        """Export the pointcloud as PLY format bytes."""
+        pointcloud = self.to_pointcloud()
+
+        try:
+            temp_file = tempfile.NamedTemporaryFile(suffix=".ply", delete=False)
+            o3d.io.write_point_cloud(temp_file.name, pointcloud)
+            temp_file.seek(0)
+            ply_bytes = temp_file.read()
+            return ply_bytes
+        finally:
+            temp_file.close()
+            os.unlink(temp_file.name)
