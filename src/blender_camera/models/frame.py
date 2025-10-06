@@ -74,16 +74,13 @@ class Frame:
         return positions
 
     def to_depth_png_bytes(self) -> bytes:
-        depth = np.clip(self._depth, 0.0, 1.0)
-        return _to_8bit_png(depth)
+        return _to_8bit_png(self._depth)
 
     def to_normal_png_bytes(self) -> bytes:
-        normal = np.clip(self._normal, 0.0, 1.0)
-        return _to_8bit_png(normal)
+        return _to_8bit_png(self._normal)
 
     def to_color_png_bytes(self) -> bytes:
-        rgb = np.clip(self._color, 0.0, 1.0)
-        return _to_8bit_png(rgb)
+        return _to_8bit_png(self._color)
 
     def to_pointcloud(self) -> o3d.geometry.PointCloud:
         """Create and return an Open3D pointcloud initialized with points, normals, and colors."""
