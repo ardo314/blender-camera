@@ -1,10 +1,8 @@
-import os
 import tempfile
 from io import BytesIO
 
 import numpy as np
 import open3d as o3d
-from loguru import logger
 from numpy.typing import NDArray
 from PIL import Image
 

@@ -8,7 +8,7 @@ dependencies = [
     "aiohttp>=3.12.15",
     "fastapi[standard]>=0.116.2",
     "loguru>=0.7.3",
-    "open3d>=0.19.0",
+    "open3d-cpu>=0.19.0",
     "openexr>=3.4.0",
     "pillow>=11.3.0",
 ]
