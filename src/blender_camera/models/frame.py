@@ -77,7 +77,8 @@ class Frame:
         return _to_8bit_png(self._depth)
 
     def to_normal_png_bytes(self) -> bytes:
-        return _to_8bit_png(self._normal)
+        normal = (self._normal + 1) / 2
+        return _to_8bit_png(normal)
 
     def to_color_png_bytes(self) -> bytes:
         return _to_8bit_png(self._color)
@@ -86,16 +87,16 @@ class Frame:
         """Create and return an Open3D pointcloud initialized with points, normals, and colors."""
         pointcloud = o3d.geometry.PointCloud()
 
-        # Get positions, normals, and colors as flattened arrays
         positions = self._depth_to_positions().reshape(-1, 3)
-        normals = np.clip(self._normal, 0.0, 1.0).reshape(-1, 3)
-        colors = np.clip(self._color, 0.0, 1.0).reshape(-1, 3)
+        normals = self._normal.reshape(-1, 3)
+        colors = self._color.reshape(-1, 3)
 
         # Initialize the Open3D pointcloud with points, normals, and colors
         pointcloud.points = o3d.utility.Vector3dVector(positions)
         pointcloud.normals = o3d.utility.Vector3dVector(normals)
         pointcloud.colors = o3d.utility.Vector3dVector(colors)
 
+        o3d.visualization.draw_geometries([pointcloud])
         return pointcloud
 
     def to_ply_bytes(self) -> bytes:
