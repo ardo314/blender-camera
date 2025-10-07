@@ -92,6 +92,12 @@ def _convert_color_exr_to_np(path: str) -> np.ndarray:
     return np.stack([r, g, b], axis=-1)
 
 
+def _convert_world_to_camera_normals(
+    normals: np.ndarray, camera: CameraLike
+) -> np.ndarray:
+    return normals
+
+
 class RenderFrameScript:
     def __init__(self, blender: Blender):
         self._blender = blender
@@ -118,7 +124,9 @@ class RenderFrameScript:
             return Frame(
                 camera,
                 _convert_depth_exr_to_np(depth_path),
-                _convert_normal_exr_to_np(normal_path),
+                _convert_world_to_camera_normals(
+                    _convert_normal_exr_to_np(normal_path), camera
+                ),
                 _convert_color_exr_to_np(color_path),
             )
         finally:
