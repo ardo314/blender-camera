@@ -95,7 +95,52 @@ def _convert_color_exr_to_np(path: str) -> np.ndarray:
 def _convert_world_to_camera_normals(
     normals: np.ndarray, camera: CameraLike
 ) -> np.ndarray:
-    return normals
+    """Convert world-space normals to camera-space normals.
+
+    Args:
+        normals: World-space normal vectors as (height, width, 3) array
+        camera: Camera with pose containing [x, y, z, rx, ry, rz] where
+                rx, ry, rz are angle-axis rotation components
+
+    Returns:
+        Camera-space normal vectors as (height, width, 3) array
+    """
+    rx, ry, rz = camera.pose[3], camera.pose[4], camera.pose[5]
+
+    # Calculate rotation angle from angle-axis representation
+    angle = np.sqrt(rx * rx + ry * ry + rz * rz)
+
+    # If no rotation, return normals unchanged
+    if angle < 1e-8:
+        return normals
+
+    # Normalize axis
+    axis = np.array([rx, ry, rz]) / angle
+
+    # Create rotation matrix using Rodrigues' formula
+    # R = I + sin(θ)K + (1-cos(θ))K²
+    # where K is the skew-symmetric matrix of the axis
+    K = np.array(
+        [[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]]
+    )
+
+    identity = np.eye(3)
+    R = identity + np.sin(angle) * K + (1 - np.cos(angle)) * np.dot(K, K)
+
+    # For transforming normals from world to camera space, we need the inverse rotation
+    # Since rotation matrices are orthogonal, R^-1 = R^T
+    R_inv = R.T
+
+    # Reshape normals to (N, 3) for matrix multiplication
+    original_shape = normals.shape
+    normals_flat = normals.reshape(-1, 3)
+
+    # Apply rotation to each normal vector
+    # normals_camera = R_inv @ normals_world
+    normals_transformed = np.dot(normals_flat, R_inv.T)
+
+    # Reshape back to original shape
+    return normals_transformed.reshape(original_shape)
 
 
 class RenderFrameScript:
