@@ -65,7 +65,7 @@ def _convert_normal_exr_to_np(path: str) -> np.ndarray:
     nz = np.frombuffer(NZ, dtype=np.float32).reshape((height, width))
     normals = np.stack([nx, ny, nz], axis=-1)
 
-    return normals
+    return -normals
 
 
 def _convert_color_exr_to_np(path: str) -> np.ndarray:

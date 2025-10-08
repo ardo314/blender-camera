@@ -96,7 +96,6 @@ class Frame:
         pointcloud.normals = o3d.utility.Vector3dVector(normals)
         pointcloud.colors = o3d.utility.Vector3dVector(colors)
 
-        o3d.visualization.draw_geometries([pointcloud])
         return pointcloud
 
     def to_ply_bytes(self) -> bytes:
