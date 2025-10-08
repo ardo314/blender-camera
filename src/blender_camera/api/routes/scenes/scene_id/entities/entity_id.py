@@ -1,0 +1,214 @@
+from fastapi import APIRouter, HTTPException, Response
+
+from blender_camera.blender import Blender
+from blender_camera.models.camera_intrinsics import CameraIntrinsics
+from blender_camera.models.components.has_camera_intrinsics import HasCameraIntrinsics
+from blender_camera.models.components.has_id import HasId
+from blender_camera.models.components.has_pose import HasPose
+from blender_camera.models.entities.entity import Entity
+from blender_camera.models.entity_model import EntityModel
+from blender_camera.models.frame import Frame
+from blender_camera.models.id import Id
+from blender_camera.models.pose import Pose, validate_pose
+from blender_camera.models.scene_model import SceneModel
+from blender_camera.scripts.render_frame_script import RenderFrameScript
+
+
+class EntityIdRouter:
+    def __init__(self, scene_model: SceneModel):
+        self._scene_model = scene_model
+
+        self.router = APIRouter(prefix="/{entity_id}")
+        self.router.add_api_route(
+            "",
+            self._get,
+            methods=["GET"],
+            responses={
+                200: {"description": "Entity details"},
+                404: {"description": "Entity not found"},
+            },
+        )
+        self.router.add_api_route(
+            "",
+            self._delete,
+            methods=["DELETE"],
+            responses={
+                204: {"description": "Entity deleted"},
+                404: {"description": "Entity not found"},
+            },
+        )
+        self.router.add_api_route(
+            "/pose",
+            self._get_pose,
+            methods=["GET"],
+            response_model=Pose,
+            responses={
+                200: {"description": "Pose"},
+                404: {"description": "Entity not found"},
+                400: {"description": "Entity has no pose"},
+            },
+        )
+        self.router.add_api_route(
+            "/pose",
+            self._set_pose,
+            methods=["PUT"],
+            response_model=None,
+            responses={
+                204: {"description": "Pose updated"},
+                400: {"description": "Invalid pose format"},
+                404: {"description": "Entity not found"},
+            },
+        )
+        self.router.add_api_route(
+            "/camera-intrinsics",
+            self._get_camera_intrinsics,
+            methods=["GET"],
+            response_model=None,
+            responses={
+                200: {"description": "Camera intrinsics"},
+                404: {"description": "Entity not found"},
+                400: {"description": "Entity has no camera intrinsics"},
+            },
+        )
+        self.router.add_api_route(
+            "/camera-intrinsics",
+            self._set_camera_intrinsics,
+            methods=["PUT"],
+            response_model=None,
+            responses={
+                204: {"description": "Camera intrinsics updated"},
+                404: {"description": "Entity not found"},
+                400: {"description": "Entity has no camera intrinsics"},
+            },
+        )
+        self.router.add_api_route(
+            "/pointcloud",
+            self._get_pointcloud,
+            methods=["GET"],
+            response_class=Response,
+            responses={
+                200: {
+                    "description": "Pointcloud data",
+                    "content": {"application/octet-stream": {}},
+                },
+                404: {"description": "Camera not found"},
+            },
+        )
+        self.router.add_api_route(
+            "/normals",
+            self._get_normals,
+            methods=["GET"],
+            response_class=Response,
+            responses={
+                200: {"description": "Rendered image", "content": {"image/png": {}}},
+                404: {"description": "Camera not found"},
+            },
+        )
+        self.router.add_api_route(
+            "/depth",
+            self._get_depth,
+            methods=["GET"],
+            response_class=Response,
+            responses={
+                200: {"description": "Rendered image", "content": {"image/png": {}}},
+                404: {"description": "Camera not found"},
+            },
+        )
+        self.router.add_api_route(
+            "/colors",
+            self._get_colors,
+            methods=["GET"],
+            response_class=Response,
+            responses={
+                200: {"description": "Rendered image", "content": {"image/png": {}}},
+                404: {"description": "Camera not found"},
+            },
+        )
+
+    def _get_entity_model_with_http_exception(self, scene_id: Id) -> EntityModel:
+        scene = self._scene_model.get_scene(scene_id)
+        if scene is None:
+            raise HTTPException(status_code=404, detail="Scene not found")
+        return scene.entity_model
+
+    def _get_entity_with_http_exception(self, scene_id: Id, entity_id: Id) -> Entity:
+        entity_model = self._get_entity_model_with_http_exception(scene_id)
+        entity = entity_model.get_entity(entity_id)
+        if entity is None:
+            raise HTTPException(status_code=404, detail="Entity not found")
+        return entity
+
+    async def _render_frame_for_camera(self, scene_id: Id, entity_id: Id) -> Frame:
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasId):
+            raise HTTPException(status_code=400, detail="Entity has no ID")
+        if not isinstance(entity, HasPose):
+            raise HTTPException(status_code=400, detail="Entity has no pose")
+
+        scene = self._scene_model.get_scene(scene_id)
+        if scene is None:
+            raise HTTPException(status_code=404, detail="Scene not found")
+
+        blender = Blender(scene.blend_path)
+        render_frame_script = RenderFrameScript(blender)
+        return await render_frame_script.execute(entity)
+
+    async def _get(self, scene_id: Id, entity_id: Id):
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        return entity.model_dump()
+
+    async def _delete(self, scene_id: Id, entity_id: Id) -> None:
+        entity_model = self._get_entity_model_with_http_exception(scene_id)
+        entity_model.delete_entity(entity_id)
+
+    async def _get_pose(self, scene_id: Id, entity_id: Id) -> Pose:
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasPose):
+            raise HTTPException(status_code=400, detail="Entity has no pose")
+        return entity.pose
+
+    async def _set_pose(self, scene_id: Id, entity_id: Id, pose: Pose):
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasPose):
+            raise HTTPException(status_code=400, detail="Entity has no pose")
+
+        if not validate_pose(pose):
+            raise HTTPException(status_code=400, detail="Invalid pose format")
+
+        entity.pose = pose
+
+    async def _get_camera_intrinsics(self, scene_id: Id, entity_id: Id):
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasCameraIntrinsics):
+            raise HTTPException(
+                status_code=400, detail="Entity has no camera intrinsics"
+            )
+        return entity.camera_intrinsics
+
+    async def _set_camera_intrinsics(
+        self, scene_id: Id, entity_id: Id, camera_intrinsics: CameraIntrinsics
+    ):
+        entity = self._get_entity_with_http_exception(scene_id, entity_id)
+        if not isinstance(entity, HasCameraIntrinsics):
+            raise HTTPException(
+                status_code=400, detail="Entity has no camera intrinsics"
+            )
+        entity.camera_intrinsics = camera_intrinsics
+
+    async def _get_pointcloud(self, scene_id: Id, entity_id: Id) -> Response:
+        frame = await self._render_frame_for_camera(scene_id, entity_id)
+        return Response(
+            content=frame.to_ply_bytes(), media_type="application/octet-stream"
+        )
+
+    async def _get_depth(self, scene_id: Id, entity_id: Id) -> Response:
+        frame = await self._render_frame_for_camera(scene_id, entity_id)
+        return Response(content=frame.to_depth_png_bytes(), media_type="image/png")
+
+    async def _get_normals(self, scene_id: Id, entity_id: Id) -> Response:
+        frame = await self._render_frame_for_camera(scene_id, entity_id)
+        return Response(content=frame.to_normal_png_bytes(), media_type="image/png")
+
+    async def _get_colors(self, scene_id: Id, entity_id: Id) -> Response:
+        frame = await self._render_frame_for_camera(scene_id, entity_id)
+        return Response(content=frame.to_color_png_bytes(), media_type="image/png")
